@@ -48,6 +48,26 @@ class AcceptedSession(Session):
     pass
 
 
+class SessionSet(object):
+    """This is basically the model for the session list."""
+    pass
+
+
 class SessionHistory(object):
+    """This is basically the model for the session history panel."""
+    pass
+
+
+class SessionSetPersistor(object):
+    """An interface offered by things that can save a session set."""
+    pass
+
+class SessionSetSqlitePersistor(SessionSetPersistor):
+    """An implementation of session set persistence using Sqlite3."""
+    pass
+
+
+class Dispatcher(object):
+    """Dispatch message handlers for events from GUI / API."""
     pass
 
