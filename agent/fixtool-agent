@@ -23,7 +23,128 @@
 #
 ##################################################################
 
+"""Background agent that manages the fixtool sessions."""
+
+# The client to agent protocol uses TCP, with a simple 32-bit big-endian
+# length frame, and then JSON to encode messages.
+#
+# Any number of fixtool clients can connect to the agent simultaneously.
+# This is no significant security implemented.
+#
+# Initially, at least, the agent will be invisible.  It might make sense
+# to add a web UI later, as an alternative controller (via WebSockets).
+#
+# Requests:
+# - login
+# - ping
+# - logout
+# - restart
+# - shutdown
+# - status
+
+# - create_client
+# - connect_client
+# - disconnect_client
+
+# - create_server
+# - listen_for_connections
+# - check_for_connections
+# - accept_connection
+# - disconnect_connection
+
+# - send_message
+# - check_for_messages
+# - wait_for_message
+
+
+import asyncio
 import fixtool
+import logging
+import selectors
+import socket
+import struct
+import ujson
+
+
+class ControlSession:
+    def __init__(self, sock):
+        self._socket = sock
+        self._buffer = b''
+        return
+
+    def append_bytes(self, buffer:bytes):
+        self._buffer += buffer
+        if len(self._buffer) <= 4:
+            # No payload yet
+            return
+
+        message_length = struct.unpack(b'>L', self._buffer[:4])[0]
+        if len(buffer) < message_length:
+            # Not received full message yet
+            return
+
+        payload = self._buffer[4:message_length]
+        self._buffer = self._buffer[message_length:]
+
+        return payload
+
+
+
+class FixToolAgent(object):
+    """ """
+
+    def __init__(self):
+        """Constructor."""
+        self._port = 11011
+        self._socket = None
+        self._loop = None
+
+        self._clients = {}
+        self._sessions = {}
+
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setblocking(False)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._socket.bind(('0.0.0.0', self._port))
+        self._socket.listen(5)
+
+        self._loop = asyncio.get_event_loop()
+        self._loop.add_reader(self._socket, self.accept)
+        return
+
+    def run(self):
+        """Enter mainloop."""
+        self._loop.run_forever()
+        return
+
+    def stop(self):
+        """Exit mainloop."""
+        return
+
+    def accept(self):
+        """Accept a new control client connection."""
+        sock, _ = self._socket.accept()
+        self._loop.add_reader(sock, self.readable, sock)
+        self._clients[sock] = ControlSession(sock)
+        return
+
+    def readable(self, sock):
+        """Handle readable event on a control client socket."""
+        client = self._clients[sock]
+        message = client.append_bytes(sock.recv(8192))
+        if message is not None:
+            self.handle_request(client, message)
+        return
+
+    def handle_request(self, client, message):
+        """Process a received message."""
+
+        # FIXME: framing?  streaming JSON?
+        # FIXME: define protocol
+        print(message)
+        return
+
+
 
 
 def main():
@@ -34,6 +155,8 @@ def main():
     # FIXME: use asyncio?  cjson over TCP?
     # FIXME: use type annotations?
 
+    agent = FixToolAgent()
+    agent.run()
     return
 
 
