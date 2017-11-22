@@ -60,10 +60,124 @@
 import asyncio
 import fixtool
 import logging
-import selectors
+import simplefix
 import socket
 import struct
 import ujson
+
+
+class Server:
+    def __init__(self):
+        """Constructor."""
+        self._begin_string = b''
+        self._comp_id = b''
+        self._auto_heartbeat = True
+        self._auto_sequence = True
+        self._raw = False
+        self._next_send_sequence = 0
+        self._last_seen_sequence = 0
+
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setblocking(False)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)
+
+        self._pending_sessions = []
+        self._accepted_sessions = {}
+        return
+
+    def is_raw(self):
+        """Is this server configured in 'raw' mode?"""
+        return self._raw
+
+    def listen(self, port):
+        """Listen for client connections.
+
+        :param port: TCP port number to listen on."""
+        self._socket.bind(('', port))
+        self._socket.listen(5)
+
+        asyncio.get_event_loop().add_reader(self._socket, self.acceptable)
+        return
+
+    def acceptable(self):
+        """Handle readable event on listening socket."""
+        sock, _ = asyncio.get_event_loop().sock_accept(self._socket)
+        session = ServerSession(self, sock)
+        self._pending_sessions.append(session)
+        return
+
+    def pending_client_count(self):
+        """Return number of pending client sessions."""
+        return len(self._pending_sessions)
+
+    def accept_client_session(self, name:str):
+        """Accept a pending client session.
+
+        :param name: Name for client session."""
+
+        if self.pending_client_count() < 1:
+            return None
+
+        client = self._pending_sessions.pop(0)
+        self._accepted_sessions[name] = client
+        return client
+
+
+class ServerSession:
+    def __init__(self, server:Server, sock:socket.socket):
+        """Constructor.
+
+        :param server: Server instance that owns this session.
+        :param sock: ephemeral sock for this session."""
+        self._server = server
+        self._socket = sock
+        self._parser = simplefix.FixParser()
+        self._is_closed = False
+        self._queue = []
+
+        asyncio.get_event_loop().add_reader(sock, self.readable)
+        return
+
+    def readable(self):
+        """Handle readable event on session's socket."""
+        buf = self._socket.recv(65536)
+        if len(buf) == 0:
+            self._is_closed = True
+            return
+
+        self._parser.append_buffer(buf)
+        msg = self._parser.get_message()
+        while msg is not None:
+            self._queue.append(msg)
+            msg = self._parser.get_message()
+        return
+
+    def is_closed(self):
+        """Return True if session is closed."""
+        return self._is_closed
+
+    def close(self):
+        """Close this session."""
+        self._is_closed = True
+        self._socket.close()
+        return
+
+    def receive_queue_length(self):
+        """Return the number of messages on the received message queue."""
+        return len(self._queue)
+
+    def get_message(self):
+        """Return the first message from the received message queue."""
+        if self.receive_queue_length() < 1:
+            return None
+        return self._queue.pop(0)
+
+    def send_message(self, message:simplefix.FixMessage):
+        """Send a message to the connected client."""
+        buffer = message.encode()
+        self._socket.sendall(buffer)
+        asyncio.get_event_loop().sock_sendall(buffer)
+        return
 
 
 class ControlSession:
@@ -99,8 +213,9 @@ class FixToolAgent(object):
         self._socket = None
         self._loop = None
 
+        self._control_sessions = {}
         self._clients = {}
-        self._sessions = {}
+        self._servers = {}
 
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.setblocking(False)
@@ -119,21 +234,25 @@ class FixToolAgent(object):
 
     def stop(self):
         """Exit mainloop."""
+        self._loop.stop()
         return
 
     def accept(self):
         """Accept a new control client connection."""
         sock, _ = self._socket.accept()
         self._loop.add_reader(sock, self.readable, sock)
-        self._clients[sock] = ControlSession(sock)
+        self._control_sessions[sock] = ControlSession(sock)
         return
 
     def readable(self, sock):
         """Handle readable event on a control client socket."""
-        client = self._clients[sock]
-        message = client.append_bytes(sock.recv(8192))
-        if message is not None:
-            self.handle_request(client, message)
+        control_session = self._control_sessions[sock]
+        payload = control_session.append_bytes(sock.recv(8192))
+
+        while payload is not None:
+            message = ujson.loads(payload)
+            self.handle_request(control_session, message)
+            payload = None  # FIXME: deal with multiple messages
         return
 
     def handle_request(self, client, message):
@@ -142,8 +261,54 @@ class FixToolAgent(object):
         # FIXME: framing?  streaming JSON?
         # FIXME: define protocol
         print(message)
+
+        message_type = message["message"]
+        if message_type == "client_create":
+            return
+
+        elif message_type == "server_create":
+            return self.handle_server_create(client, message)
+
+        elif message_type == "server_listen":
+            return
+
+        elif message_type == "server_accept":
+            return
+
+        elif message_type == "server_queue_length":
+            return
+
+        elif message_type == "server_get_message":
+            return
+
+        elif message_type == "server_send_message":
+            return
+
+        else:
+            return
+
+
+    def handle_client_create(self):
         return
 
+    def handle_server_create(self, client, message):
+        name = message["name"]
+        if name in self._servers:
+            self.send_error(message, "Server '%s' already exists" % name)
+            return
+
+        return
+
+    def send_error(self, request, error):
+        self.send_response(request,
+                           {"message": "",
+                            "name": name,
+                            "result": False,
+                            "error": error})
+        return
+
+    def send_response(self, request, response):
+        return
 
 
 

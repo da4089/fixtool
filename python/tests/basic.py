@@ -37,13 +37,14 @@ class BasicTests(unittest.TestCase):
 
     def test_connect_disconnect(self):
         proxy = fixtool.FixToolProxy("localhost", 11011)
-        client = proxy.create_initiator()
-        server = proxy.create_listener()
+        client = proxy.create_client()
+        server = proxy.create_server()
 
-        listener = server.listen(12000)
+        server.listen(12000)
+        self.assertEqual(0, server.pending_client_count())
         client.connect("localhost", 12000)
-        self.assertEqual(1, listener.count_waiting())
-        server_session = listener.accept()
+        self.assertEqual(1, server.pending_client_count())
+        server_session = server.accept()
         self.assertTrue(server_session.is_connected())
         self.assertTrue(client.is_connected())
 
