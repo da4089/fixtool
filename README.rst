@@ -8,27 +8,33 @@ fixtool
 Introduction
 ============
 
-fixtool
+This utility provides a means of establishing a connection, using the
+FIX protocol, with an existing FIX application.  The connection is made
+from a background agent process, but controlled by either a command-line
+tool, or a programming language API.
 
+It is intended for use in either ad-hoc FIX testing (using the command-line)
+or for integration testing of FIX applications, where it can be configured
+to simulate the intended FIX peer.  To automate testing, an existing
+language unit testing framework is helpful: test cases can be written to
+exercise your code, and interleaved with that you can drive the FIX peer
+to confirm receipt of appropriate messages from your application, and to
+craft responses (both correct and incorrect) to implement your testing
+scenarios.
 
-* Server
-  * Listens for requests from clients
-    * TCP + 32-bit length + JSON
-  * Establishes FIX sessions
-    * Client (initiator)
-    * Server (responder)
-  * All subsequent behaviour is driven by client program
-    * Much like robot-nps, without the RobotFramework.
-* Python client
-  * Intended to integrate with unittest, tox, etc.
-  * Standard OO API library
-* Java client
-  * Designed for writing tests using standard Java unit test framework
-* DotNET client
-  * Designed for writing tests using standard (?) .NET unit test framework
-* CLI client
-  * Can be driven from shell, for scripting tests in bash, etc.
+The agent process communicates with the command-line tool and programming
+language APIs using a TCP session.  The protocol is simple, and uses
+JSON-formatted messages.
 
+Language SDKs are planned for Python, Java, DotNET, and possibly Go and
+C/C++.  The command-line client enables use from shell scripts or ad-hoc
+use from a shell session.
+
+Caveats
+=======
+
+This project is very young.  It's nowhere near finished.  It probably
+doesn't do what you need yet.
 
 Contributing
 ============
