@@ -1,4 +1,6 @@
 coverage
 coveralls
+setuptools
 simplefix
+twine
 ujson
