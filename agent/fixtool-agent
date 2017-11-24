@@ -60,9 +60,12 @@
 import asyncio
 import fixtool
 import logging
+import os
 import simplefix
+import signal
 import socket
 import struct
+import sys
 import ujson
 
 
@@ -202,6 +205,9 @@ class ControlSession:
 
         return payload
 
+    def close(self):
+        self._socket.close()
+        return
 
 
 class FixToolAgent(object):
@@ -247,8 +253,13 @@ class FixToolAgent(object):
     def readable(self, sock):
         """Handle readable event on a control client socket."""
         control_session = self._control_sessions[sock]
-        payload = control_session.append_bytes(sock.recv(8192))
+        buf = sock.recv(65536)
+        if len(buf) == 0:
+            del self._control_sessions[sock]
+            control_session.close()
+            return
 
+        payload = control_session.append_bytes(buf)
         while payload is not None:
             message = ujson.loads(payload)
             self.handle_request(control_session, message)
@@ -302,7 +313,6 @@ class FixToolAgent(object):
     def send_error(self, request, error):
         self.send_response(request,
                            {"message": "",
-                            "name": name,
                             "result": False,
                             "error": error})
         return
@@ -320,8 +330,27 @@ def main():
     # FIXME: use asyncio?  cjson over TCP?
     # FIXME: use type annotations?
 
-    agent = FixToolAgent()
-    agent.run()
+    # FIXME: replace all this pidfile malarky with a shutdown to a port number
+    pid_file_name = "/tmp/%s-fixtool-agent.pid" % os.environ.get("LOGNAME")
+
+    if len(sys.argv) > 1:
+        command = sys.argv[1]
+        if command == "shutdown":
+            pid_file = open(pid_file_name)
+            pid = int(pid_file.readline())
+            os.kill(pid, signal.SIGINT)
+            sys.exit(0)
+
+    pid_file = open(pid_file_name, "wb")
+    pid_file.write(b"%u\n" % os.getpid())
+    pid_file.close()
+
+    try:
+        agent = FixToolAgent()
+        agent.run()
+    finally:
+        os.remove(pid_file_name)
+
     return
 
 
