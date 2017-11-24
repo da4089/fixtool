@@ -23,7 +23,7 @@
 #
 ########################################################################
 
-from distutils.core import setup
+from setuptools import setup
 
 with open("README.rst") as readme:
     long_description = readme.read()
@@ -38,7 +38,7 @@ setup(name="fixtool",
       license="MIT",
       packages=["fixtool"],
       classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 3 - Alpha',
         'Topic :: System :: Networking',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
