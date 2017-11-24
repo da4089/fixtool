@@ -1,14 +1,11 @@
 language: python
 python:
- - "2.7"
- - "3.3"
- - "3.4"
  - "3.5"
  - "3.6"
 install:
  - pip install -r requirements.txt
 script:
- - env PYTHONPATH=python python agent/fixtool-agent.py
+ - env PYTHONPATH=python python agent/fixtool-agent.py &
  - cd python/tests
  - env PYTHONPATH=.. python -m unittest --verbose all
  - cd ..
