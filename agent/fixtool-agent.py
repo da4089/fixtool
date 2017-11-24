@@ -42,19 +42,23 @@
 # - shutdown
 # - status
 
-# - create_client
-# - connect_client
-# - disconnect_client
+# - client_create / client_created
+# - client_connect / client_connected
+# - client_disconnect / client_disconnected
+# - client send / client_sent
+# - client_get_pending_receive / client_pending_receive
+# - client_receive / client_received
 
-# - create_server
-# - listen_for_connections
-# - check_for_connections
-# - accept_connection
-# - disconnect_connection
+# - server_create / server_created
+# - server_listen / server_listening
+# - server_listen_stop / server_listen_stopped
+# - server_get_pending_accept / server_pending_accept
+# - server_accept / server_accepted
+# - server_send / server_sent
+# - server_get_pending_receive / server_pending_receive
+# - server_receive / server_received
+# - server_disconnect / server_disconnected
 
-# - send_message
-# - check_for_messages
-# - wait_for_message
 
 
 import asyncio
@@ -281,6 +285,9 @@ class FixToolAgent(object):
             return self.handle_server_create(client, message)
 
         elif message_type == "server_listen":
+            return
+
+        elif message_type == "server_pending_count":
             return
 
         elif message_type == "server_accept":

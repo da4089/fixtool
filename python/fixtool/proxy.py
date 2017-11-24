@@ -23,34 +23,45 @@
 #
 ##################################################################
 
-import asyncio
-import fixtool
 import socket
+import struct
+
+from fixtool.message import *
 
 
 class ClientSession(object):
-    def __init__(self, proxy):
+    def __init__(self, proxy, name: str):
         self._proxy = proxy
+        self._name = name
         self._host = None
         self._port = None
-        self._client_id = None
+        self._is_connected = False
 
-        self._proxy.send_request({"message": "create_client"})
+        msg = ClientCreateMessage(self._name)
+        self._proxy.send_request(msg)
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
         return
 
     def connect(self, host, port):
         self._host = host
         self._port = port
 
-        self._proxy.send_request({"message": "connect_client"})
+        msg = ClientConnectMessage(self._host, self._port)
+        self._proxy.send_request(msg)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
         return
 
     def disconnect(self):
-        self._proxy.send_request({"message": "disconnect_client"})
+        self._proxy.send_request({"message": "client_disconnect"})
         return
 
     def receive_queue_length(self):
-        self._proxy.send_request({"message": "get_client_queue_length"})
+        self._proxy.send_request({"message": "client_get_queue_length"})
         return 0
 
     def get_message(self):
@@ -65,28 +76,56 @@ class ClientSession(object):
 
 
 class ServerSession(object):
-    def __init__(self, proxy):
+    def __init__(self, proxy, name: str):
         self._proxy = proxy
-        self._queue = []
+        self._name = name
+        self._clients = {}
+
+        msg = ServerCreateMessage(self._name)
+        self._proxy.send_request(msg)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
         return
 
-    def listen(self, port):
+    def listen(self, port: int):
+        msg = ServerListenMessage(self._name, port)
+        self._proxy.send_request(msg)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
         return
 
-    def pending_client_count(self):
-        return len(self._queue)
+    def pending_accept_count(self):
+        msg = ServerGetPendingAccept(self._name)
+        self._proxy.send_request(msg)
 
-    def get_message(self):
-        if len(self._queue) < 1:
-            raise RuntimeError()
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+        count = response.get("count")
+        return count
 
-        msg = self._queue.pop(0)
-        return msg
+    def accept(self):
+        msg = ServerAcceptMessage(self._name)
+        self._proxy.send_request(msg)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        name = response.get("client_name")
+        client = ServerClientSession(self, name)
+        self._clients[name] = client
+        return client
 
 
-class ServerSessionClient(object):
-    def __init__(self, server):
+class ServerClientSession(object):
+    def __init__(self, server, name):
         self._server = server
+        self._name = name
         return
 
 
@@ -97,33 +136,60 @@ class Responder(object):
 
 
 class FixToolProxy(object):
-    def __init__(self, host, port):
+    def __init__(self, host: str, port: int):
         self._host = host
         self._port = port
-        self._clients = []
-        self._servers = []
+        self._clients = {}
+        self._servers = {}
 
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.connect((host, port))
-        self._socket.setblocking(False)
+        self._socket.setblocking(True)
 
+        self._buffer = b''
         return
 
-    def create_client(self):
+    def create_client(self, name: str):
         """Create a FIX client."""
-        client = ClientSession(self)
-        self._clients.append(client)
+        client = ClientSession(self, name)
+        self._clients[name] = client
         return client
 
-    def create_server(self):
+    def create_server(self, name: str):
         """Create a FIX server."""
-        server = ServerSession(self)
-        self._servers.append(server)
+        server = ServerSession(self, name)
+        self._servers[name] = server
         return server
 
     def send_request(self, message):
+        buf = message.to_json().encode('UTF-8')
+        self._socket.sendall(buf)
         return
 
-    def wait_for_response(self):
-        return
+    def await_response(self):
+        while True:
+            buf = self._socket.recv(65536)
+            if len(buf) == 0:
+                # Disconnected.
+                return None
 
+            self._buffer += buf
+            if len(self._buffer) <= 4:
+                continue
+
+            message_length = struct.unpack(">L", self._buffer[:4])[0]
+            if len(self._buffer) < message_length:
+                continue
+
+            message_buf = self._buffer[4:message_length]
+            self._buffer = self._buffer[message_length:]
+
+            d = json.loads(message_buf)
+            msg = None
+            if d["type"] == "server_created":
+                msg = ServerCreatedMessage.from_dict(d)
+
+            elif d["type"] == "server_connected":
+                msg = ServerConnectedMessage.from_dict(d)
+
+            return msg
