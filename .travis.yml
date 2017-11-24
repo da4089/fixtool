@@ -8,9 +8,9 @@ python:
 install:
 - pip install -r requirements.txt
 script:
- - cd test
+ - cd python/tests
  - env PYTHONPATH=.. python -m unittest --verbose all
  - cd ..
- - env PYTHONPATH=. coverage run test/all.py
+ - env PYTHONPATH=. coverage run tests/all.py
 after_success:
  - coveralls
