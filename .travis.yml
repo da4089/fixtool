@@ -6,8 +6,7 @@ python:
   - "3.5"
   - "3.6"
 install:
-- pip install -R requirements.txt
-- pip install coveralls
+- pip install -r requirements.txt
 script:
  - cd test
  - env PYTHONPATH=.. python -m unittest --verbose all
