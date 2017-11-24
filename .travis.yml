@@ -8,12 +8,12 @@ python:
 install:
  - pip install -r requirements.txt
 script:
- - env PYTHONPATH=python agent/fixtool-agent
+ - env PYTHONPATH=python python agent/fixtool-agent.py
  - cd python/tests
  - env PYTHONPATH=.. python -m unittest --verbose all
  - cd ..
  - env PYTHONPATH=. coverage run tests/all.py
  - cd ..
- - env PYTHONPATH=python agent/fixtool-agent shutdown
+ - env PYTHONPATH=python python agent/fixtool-agent.py shutdown
 after_success:
  - coveralls
