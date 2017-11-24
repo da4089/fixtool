@@ -36,7 +36,7 @@ setup(name="fixtool",
       author="David Arnold",
       author_email="d+fixtool@0x1.org",
       license="MIT",
-      packages=["fixtool"],
+      packages=["python/fixtool"],
       classifiers=[
         'Development Status :: 3 - Alpha',
         'Topic :: System :: Networking',
