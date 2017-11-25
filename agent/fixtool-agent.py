@@ -62,7 +62,6 @@
 
 
 import asyncio
-import fixtool
 import logging
 import os
 import simplefix
@@ -71,6 +70,8 @@ import socket
 import struct
 import sys
 import ujson
+
+from fixtool.message import *
 
 
 class Server:
@@ -131,7 +132,7 @@ class Server:
 
 
 class ServerSession:
-    def __init__(self, server:Server, sock:socket.socket):
+    def __init__(self, server: Server, sock: socket.SocketType):
         """Constructor.
 
         :param server: Server instance that owns this session.
@@ -188,12 +189,19 @@ class ServerSession:
 
 
 class ControlSession:
-    def __init__(self, sock):
+    """Control client session."""
+    def __init__(self, sock: socket.SocketType):
+        """Constructor.
+
+        :param sock: Accepted socket."""
         self._socket = sock
         self._buffer = b''
         return
 
-    def append_bytes(self, buffer:bytes):
+    def append_bytes(self, buffer: bytes):
+        """Receive a buffer of bytes from this control client.
+
+        :param buffer: Array of bytes from client."""
         self._buffer += buffer
         if len(self._buffer) <= 4:
             # No payload yet
@@ -206,10 +214,17 @@ class ControlSession:
 
         payload = self._buffer[4:message_length]
         self._buffer = self._buffer[message_length:]
-
         return payload
 
+    def send(self, buffer: bytes):
+        """Send a buffer to the control client.
+
+        :param buffer: Array of bytes to send to client."""
+        self._socket.sendall(buffer)
+        return
+
     def close(self):
+        """Close this connection."""
         self._socket.close()
         return
 
@@ -273,11 +288,7 @@ class FixToolAgent(object):
     def handle_request(self, client, message):
         """Process a received message."""
 
-        # FIXME: framing?  streaming JSON?
-        # FIXME: define protocol
-        print(message)
-
-        message_type = message["message"]
+        message_type = message["type"]
         if message_type == "client_create":
             return
 
@@ -285,7 +296,7 @@ class FixToolAgent(object):
             return self.handle_server_create(client, message)
 
         elif message_type == "server_listen":
-            return
+            return self.handle_server_listen(client, message)
 
         elif message_type == "server_pending_count":
             return
@@ -306,16 +317,36 @@ class FixToolAgent(object):
             return
 
 
-    def handle_client_create(self):
+    def handle_client_create(self, client: ControlSession, message: dict):
         return
 
-    def handle_server_create(self, client, message):
-        name = message["name"]
+    def handle_server_create(self, client: ControlSession, message: dict):
+        """Process a server_create message.
+
+        :param client: Reference to the sending client.
+        :param message: """
+        name = message.get("name")
         if name in self._servers:
             self.send_error(message, "Server '%s' already exists" % name)
             return
 
+        # Create server.
+        server = Server()
+
+        # Register in table.
+        self._servers[name] = server
+
+        # Send reply.
+        response = ServerCreatedMessage(name, True, '')
+        self.send_response(client, response.to_json())
         return
+
+    def handle_server_listen(self, client: ControlSession, message: dict):
+        name = message["name"]
+        if name not in self._servers:
+            self.send_error(message, "No such server '%s'" % name)
+            return
+
 
     def send_error(self, request, error):
         self.send_response(request,
@@ -324,7 +355,9 @@ class FixToolAgent(object):
                             "error": error})
         return
 
-    def send_response(self, request, response):
+    def send_response(self, client, response):
+
+
         return
 
 
