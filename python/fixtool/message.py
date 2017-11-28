@@ -237,7 +237,8 @@ class ServerAcceptMessage:
 
 
 class ServerAcceptedMessage:
-    def __init__(self, name: str, result: bool, message: str, session_name: str):
+    def __init__(self, name: str, result: bool, message: str,
+                 session_name: str):
         self.type = "server_accepted"
         self.name = name
         self.result = result
@@ -258,3 +259,117 @@ class ServerAcceptedMessage:
                                      d.get("result"),
                                      d.get("message"),
                                      d.get("session_name"))
+
+
+class ClientIsConnectedRequest:
+    def __init__(self, name: str):
+        self.type = "client_is_connected_request"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientIsConnectedRequest(d.get("name"))
+
+
+class ClientIsConnectedResponse:
+    def __init__(self, name: str, result: bool, message: str, connected: bool):
+        self.type = "client_is_connected_response"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.connected = connected
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "connected": self.connected})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientIsConnectedResponse(d.get("name"),
+                                         d.get("result"),
+                                         d.get("message"),
+                                         d.get("connected"))
+
+
+class ServerIsConnectedRequest:
+    def __init__(self, name: str):
+        self.type = "server_is_connected_request"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerIsConnectedRequest(d.get("name"))
+
+
+class ServerIsConnectedResponse:
+    def __init__(self, name: str, result: bool, message: str, connected: bool):
+        self.type = "server_is_connected_response"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.connected = connected
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "connected": self.connected})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerIsConnectedResponse(d.get("name"),
+                                         d.get("result"),
+                                         d.get("message"),
+                                         d.get("connected"))
+
+
+class ServerDisconnectMessage:
+    def __init__(self, name: str):
+        self.type = "server_disconnect"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerDisconnectMessage(d.get("name"))
+
+
+class ServerDisconnectedMessage:
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "server_disconnected"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerDisconnectedMessage(d.get("name"),
+                                         d.get("result"),
+                                         d.get("message"))

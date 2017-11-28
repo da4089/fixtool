@@ -35,7 +35,6 @@ class ClientSession(object):
         self._name = name
         self._host = None
         self._port = None
-        self._is_connected = False
 
         msg = ClientCreateMessage(self._name)
         self._proxy.send_request(msg)
@@ -54,8 +53,6 @@ class ClientSession(object):
         response = self._proxy.await_response()
         if not response.result:
             raise RuntimeError(response.message)
-
-        self._is_connected = True
         return
 
     def disconnect(self):
@@ -66,18 +63,18 @@ class ClientSession(object):
         self._proxy.send_request({"message": "client_get_queue_length"})
         return 0
 
-    def get_message(self):
-        if len(self._queue) < 1:
-            return RuntimeError()
-
-        msg = self._queue.pop(0)
-        return msg
-
     def send_message(self, message):
         return
 
     def is_connected(self):
-        return self._is_connected
+        request = ClientIsConnectedRequest(self._name)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        return response.connected
 
 
 class ServerSession(object):
@@ -120,25 +117,36 @@ class ServerSession(object):
         if not response.result:
             raise RuntimeError(response.message)
 
-        client = ServerClientSession(self, response.session_name)
+        client = ServerClientSession(self, self._proxy, response.session_name)
         self._clients[response.session_name] = client
         return client
 
 
 class ServerClientSession(object):
-    def __init__(self, server, name):
+    def __init__(self, server, proxy, name):
         self._server = server
+        self._proxy = proxy
         self._name = name
-        self._is_connected = True
         return
 
     def is_connected(self):
-        return self._is_connected
+        request = ServerIsConnectedRequest(self._name)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        return response.connected
 
     def disconnect(self):
-        self._is_connected = False
-        return
+        request = ServerDisconnectMessage(self._name)
+        self._proxy.send_request(request)
 
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+        return
 
 
 
@@ -203,6 +211,9 @@ class FixToolProxy(object):
             elif message_type == "client_connected":
                 message = ClientConnectedMessage.from_dict(d)
 
+            elif message_type == "client_is_connected_response":
+                message = ClientIsConnectedResponse.from_dict(d)
+
             elif message_type == "server_created":
                 message = ServerCreatedMessage.from_dict(d)
 
@@ -214,5 +225,11 @@ class FixToolProxy(object):
 
             elif message_type == "server_accepted":
                 message = ServerAcceptedMessage.from_dict(d)
+
+            elif message_type == "server_is_connected_response":
+                message = ServerIsConnectedResponse.from_dict(d)
+
+            elif message_type == "server_disconnected":
+                message = ServerDisconnectedMessage.from_dict(d)
 
             return message

@@ -87,19 +87,46 @@ class Client:
         self._last_seen_sequence = 0
         self._host = None
         self._port = None
+        self._is_connected = False
 
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.setblocking(True)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        self._parser = simplefix.FixParser()
+        self._recv_queue = []
         return
 
     def connect(self, host: str, port: int):
         self._host = host
         self._port = port
         self._socket.connect((self._host, self._port))
+        self._is_connected = True
+
+        asyncio.get_event_loop().add_reader(self._socket, self.readable)
         return
 
+    def is_connected(self):
+        return self._is_connected
+
+    def disconnect(self):
+        self._socket.close()
+        self._is_connected = False
+
     def login(self, sender, target, user, password):
+        return
+
+    def readable(self):
+        buf = self._socket.recv(65536)
+        if len(buf) == 0:
+            self.disconnect()
+            return
+
+        self._parser.append_buffer(buf)
+        message = self._parser.get_message()
+        while message is not None:
+            self._recv_queue.append(message)
+            message = self._parser.get_message()
         return
 
 
@@ -172,7 +199,7 @@ class ServerSession:
         self._socket = sock
         self._name = None
         self._parser = simplefix.FixParser()
-        self._is_closed = False
+        self._is_connected = True
         self._queue = []
 
         asyncio.get_event_loop().add_reader(sock, self.readable)
@@ -182,14 +209,11 @@ class ServerSession:
         self._name = name
         return
 
-    def get_name(self):
-        return self._name
-
     def readable(self):
         """Handle readable event on session's socket."""
         buf = self._socket.recv(65536)
         if len(buf) == 0:
-            self._is_closed = True
+            self._is_connected = False
             return
 
         self._parser.append_buffer(buf)
@@ -199,13 +223,13 @@ class ServerSession:
             msg = self._parser.get_message()
         return
 
-    def is_closed(self):
-        """Return True if session is closed."""
-        return self._is_closed
+    def is_connected(self):
+        """Return True if session is connected."""
+        return self._is_connected
 
-    def close(self):
+    def disconnect(self):
         """Close this session."""
-        self._is_closed = True
+        self._is_connected = False
         self._socket.close()
         return
 
@@ -285,6 +309,7 @@ class FixToolAgent(object):
         self._control_sessions = {}
         self._clients = {}
         self._servers = {}
+        self._server_sessions = {}
 
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.setblocking(False)
@@ -346,6 +371,9 @@ class FixToolAgent(object):
         elif message_type == "client_connect":
             return self.handle_client_connect(client, message)
 
+        elif message_type == "client_is_connected_request":
+            return self.handle_client_is_connected_request(client, message)
+
         elif message_type == "server_create":
             return self.handle_server_create(client, message)
 
@@ -357,6 +385,12 @@ class FixToolAgent(object):
 
         elif message_type == "server_accept":
             return self.handle_server_accept(client, message)
+
+        elif message_type == "server_is_connected_request":
+            return self.handle_server_is_connected_request(client, message)
+
+        elif message_type == "server_disconnect":
+            return self.handle_server_disconnect(client, message)
 
         elif message_type == "server_queue_length":
             return
@@ -399,6 +433,23 @@ class FixToolAgent(object):
         client.connect(message.get("host"), message.get("port"))
 
         response = ClientConnectedMessage(name, True, '')
+        control.send(response.to_json().encode())
+        return
+
+    def handle_client_is_connected_request(self, control: ControlSession,
+                                           message: dict):
+        name = message.get("name")
+        client = self._clients.get(name)
+        if client is None:
+            response = ClientIsConnectedResponse(name, False,
+                                                 "No such client %s" % name,
+                                                 False)
+            control.send(response.to_json().encode())
+            return
+
+        is_connected = client.is_connected()
+
+        response = ClientIsConnectedResponse(name, True, '', is_connected)
         control.send(response.to_json().encode())
         return
 
@@ -472,8 +523,42 @@ class FixToolAgent(object):
             control.send(response.to_json().encode())
             return
 
-        session = server.accept_client_session(message.get("session_name"))
-        response = ServerAcceptedMessage(name, True, '', session.get_name())
+        session_name = message.get("session_name")
+        session = server.accept_client_session(session_name)
+        self._server_sessions[session_name] = session
+        response = ServerAcceptedMessage(name, True, '', session_name)
+        control.send(response.to_json().encode())
+        return
+
+    def handle_server_is_connected_request(self, control: ControlSession,
+                                           message: dict):
+        name = message.get("name")
+        server_session = self._server_sessions.get(name)
+        if server_session is None:
+            response = ServerIsConnectedResponse(name, False,
+                                                 "No such session %s" % name,
+                                                 False)
+            control.send(response.to_json().encode())
+            return
+
+        is_connected = server_session.is_connected()
+
+        response = ServerIsConnectedResponse(name, True, '', is_connected)
+        control.send(response.to_json().encode())
+        return
+
+    def handle_server_disconnect(self, control: ControlSession, message: dict):
+        name = message.get("name")
+        server_session = self._server_sessions.get(name)
+        if server_session is None:
+            response = ServerDisconnectedMessage(name, False,
+                                                 "No such session %s" % name)
+            control.send(response.to_json().encode())
+            return
+
+        server_session.disconnect()
+
+        response = ServerDisconnectedMessage(name, True, '')
         control.send(response.to_json().encode())
         return
 
