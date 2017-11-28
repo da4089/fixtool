@@ -63,20 +63,24 @@ class ClientCreatedMessage:
 
 
 class ClientConnectMessage:
-    def __init__(self, host: str, port: int):
+    def __init__(self, name: str, host: str, port: int):
         self.type = "client_connect"
+        self.name = name
         self.host = host
         self.port = port
         return
 
     def to_json(self):
         return json.dumps({"type": self.type,
+                           "name": self.name,
                            "host": self.host,
                            "port": self.port})
 
     @staticmethod
     def from_dict(d):
-        return ClientConnectMessage(d.get("host"), d.get("port"))
+        return ClientConnectMessage(d.get("name"),
+                                    d.get("host"),
+                                    d.get("port"))
 
 
 class ClientConnectedMessage:
@@ -154,3 +158,103 @@ class ServerListenMessage:
                                    d.get("port"))
 
 
+class ServerListenedMessage:
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "server_listened"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerListenedMessage(d.get("name"),
+                                     d.get("result"),
+                                     d.get("message"))
+
+
+class ServerPendingAcceptCountRequest:
+    def __init__(self, name: str):
+        self.type = "server_pending_accept_request"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerPendingAcceptCountRequest(d.get("name"))
+
+
+class ServerPendingAcceptCountResponse:
+    def __init__(self, name: str, result: bool, message: str, count: int):
+        self.type = "server_pending_accept_response"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.count = count
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "count": self.count})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerPendingAcceptCountResponse(d.get("name"),
+                                                d.get("result"),
+                                                d.get("message"),
+                                                d.get("count"))
+
+
+class ServerAcceptMessage:
+    def __init__(self, name: str, session_name: str):
+        self.type = "server_accept"
+        self.name = name
+        self.session_name = session_name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "session_name": self.session_name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerAcceptMessage(d.get("name"),
+                                   d.get("session_name"))
+
+
+class ServerAcceptedMessage:
+    def __init__(self, name: str, result: bool, message: str, session_name: str):
+        self.type = "server_accepted"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.session_name = session_name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "session_name": self.session_name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerAcceptedMessage(d.get("name"),
+                                     d.get("result"),
+                                     d.get("message"),
+                                     d.get("session_name"))

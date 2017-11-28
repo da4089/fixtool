@@ -48,12 +48,14 @@ class ClientSession(object):
         self._host = host
         self._port = port
 
-        msg = ClientConnectMessage(self._host, self._port)
+        msg = ClientConnectMessage(self._name, self._host, self._port)
         self._proxy.send_request(msg)
 
         response = self._proxy.await_response()
         if not response.result:
             raise RuntimeError(response.message)
+
+        self._is_connected = True
         return
 
     def disconnect(self):
@@ -73,6 +75,9 @@ class ClientSession(object):
 
     def send_message(self, message):
         return
+
+    def is_connected(self):
+        return self._is_connected
 
 
 class ServerSession(object):
@@ -99,26 +104,24 @@ class ServerSession(object):
         return
 
     def pending_accept_count(self):
-        msg = ServerGetPendingAccept(self._name)
+        msg = ServerPendingAcceptCountRequest(self._name)
         self._proxy.send_request(msg)
 
         response = self._proxy.await_response()
         if not response.result:
             raise RuntimeError(response.message)
-        count = response.get("count")
-        return count
+        return response.count
 
-    def accept(self):
-        msg = ServerAcceptMessage(self._name)
+    def accept(self, new_name: str):
+        msg = ServerAcceptMessage(self._name, new_name)
         self._proxy.send_request(msg)
 
         response = self._proxy.await_response()
         if not response.result:
             raise RuntimeError(response.message)
 
-        name = response.get("client_name")
-        client = ServerClientSession(self, name)
-        self._clients[name] = client
+        client = ServerClientSession(self, response.session_name)
+        self._clients[response.session_name] = client
         return client
 
 
@@ -126,12 +129,16 @@ class ServerClientSession(object):
     def __init__(self, server, name):
         self._server = server
         self._name = name
+        self._is_connected = True
         return
 
+    def is_connected(self):
+        return self._is_connected
 
-class Responder(object):
-    def __init__(self):
+    def disconnect(self):
+        self._is_connected = False
         return
+
 
 
 
@@ -162,8 +169,10 @@ class FixToolProxy(object):
         return server
 
     def send_request(self, message):
-        buf = message.to_json().encode('UTF-8')
-        self._socket.sendall(buf)
+        payload = message.to_json().encode('UTF-8')
+        payload_length = len(payload)
+        header = struct.pack(">L", payload_length)
+        self._socket.sendall(header + payload)
         return
 
     def await_response(self):
@@ -178,18 +187,32 @@ class FixToolProxy(object):
                 continue
 
             message_length = struct.unpack(">L", self._buffer[:4])[0]
+            self._buffer = self._buffer[4:]
             if len(self._buffer) < message_length:
                 continue
 
-            message_buf = self._buffer[4:message_length]
+            message_buf = self._buffer[:message_length]
             self._buffer = self._buffer[message_length:]
 
             d = json.loads(message_buf)
-            msg = None
-            if d["type"] == "server_created":
-                msg = ServerCreatedMessage.from_dict(d)
+            message = None
+            message_type = d.get("type")
+            if message_type == "client_created":
+                message = ClientCreatedMessage.from_dict(d)
 
-            elif d["type"] == "server_connected":
-                msg = ServerConnectedMessage.from_dict(d)
+            elif message_type == "client_connected":
+                message = ClientConnectedMessage.from_dict(d)
 
-            return msg
+            elif message_type == "server_created":
+                message = ServerCreatedMessage.from_dict(d)
+
+            elif message_type == "server_listened":
+                message = ServerListenedMessage.from_dict(d)
+
+            elif message_type == "server_pending_accept_response":
+                message = ServerPendingAcceptCountResponse.from_dict(d)
+
+            elif message_type == "server_accepted":
+                message = ServerAcceptedMessage.from_dict(d)
+
+            return message

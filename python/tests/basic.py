@@ -43,12 +43,14 @@ class BasicTests(unittest.TestCase):
         self.assertEqual(0, server.pending_accept_count())
         client.connect("localhost", 12000)
         self.assertEqual(1, server.pending_accept_count())
-        server_session = server.accept()
+        server_session = server.accept("ss1")
         self.assertTrue(server_session.is_connected())
         self.assertTrue(client.is_connected())
 
         server_session.disconnect()
         self.assertFalse(server_session.is_connected())
+
+
         self.assertFalse(client.is_connected())
         return
 
