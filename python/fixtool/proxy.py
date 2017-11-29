@@ -35,6 +35,7 @@ class ClientSession(object):
         self._name = name
         self._host = None
         self._port = None
+        self._destroyed = False
 
         msg = ClientCreateMessage(self._name)
         self._proxy.send_request(msg)
@@ -43,7 +44,23 @@ class ClientSession(object):
             raise RuntimeError(response.message)
         return
 
+    def destroy(self):
+        assert not self._destroyed
+
+        request = ClientDestroyMessage(self._name)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        self._proxy.remove_client(self._name)
+        self._destroyed = True
+        return
+
     def connect(self, host, port):
+        assert not self._destroyed
+
         self._host = host
         self._port = port
 
@@ -56,17 +73,25 @@ class ClientSession(object):
         return
 
     def disconnect(self):
+        assert not self._destroyed
+
         self._proxy.send_request({"message": "client_disconnect"})
         return
 
     def receive_queue_length(self):
+        assert not self._destroyed
+
         self._proxy.send_request({"message": "client_get_queue_length"})
         return 0
 
     def send_message(self, message):
+        assert not self._destroyed
+
         return
 
     def is_connected(self):
+        assert not self._destroyed
+
         request = ClientIsConnectedRequest(self._name)
         self._proxy.send_request(request)
 
@@ -82,6 +107,8 @@ class ServerSession(object):
         self._proxy = proxy
         self._name = name
         self._clients = {}
+        self._ports = []
+        self._destroyed = False
 
         msg = ServerCreateMessage(self._name)
         self._proxy.send_request(msg)
@@ -91,16 +118,59 @@ class ServerSession(object):
             raise RuntimeError(response.message)
         return
 
+    def destroy(self):
+        assert not self._destroyed
+
+        for session in self._clients.values():
+            session.destroy()
+        self._clients = {}
+
+        for port in self._ports[:]:
+            self.unlisten(port)
+
+        assert len(self._clients) == 0
+        assert len(self._ports) == 0
+
+        request = ServerDestroyMessage(self._name)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        self._proxy.remove_server(self._name)
+        self._destroyed = True
+        return
+
     def listen(self, port: int):
+        assert not self._destroyed
+
         msg = ServerListenMessage(self._name, port)
         self._proxy.send_request(msg)
 
         response = self._proxy.await_response()
         if not response.result:
             raise RuntimeError(response.message)
+
+        self._ports.append(port)
+        return
+
+    def unlisten(self, port: int):
+        assert not self._destroyed
+
+        request = ServerUnlistenMessage(self._name, port)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        self._ports.remove(port)
         return
 
     def pending_accept_count(self):
+        assert not self._destroyed
+
         msg = ServerPendingAcceptCountRequest(self._name)
         self._proxy.send_request(msg)
 
@@ -110,6 +180,8 @@ class ServerSession(object):
         return response.count
 
     def accept(self, new_name: str):
+        assert not self._destroyed
+
         msg = ServerAcceptMessage(self._name, new_name)
         self._proxy.send_request(msg)
 
@@ -127,6 +199,12 @@ class ServerClientSession(object):
         self._server = server
         self._proxy = proxy
         self._name = name
+        self._connected = True
+        return
+
+    def destroy(self):
+        if self._connected:
+            self.disconnect()
         return
 
     def is_connected(self):
@@ -146,6 +224,8 @@ class ServerClientSession(object):
         response = self._proxy.await_response()
         if not response.result:
             raise RuntimeError(response.message)
+
+        self._connected = False
         return
 
 
@@ -208,6 +288,9 @@ class FixToolProxy(object):
             if message_type == "client_created":
                 message = ClientCreatedMessage.from_dict(d)
 
+            elif message_type == "client_destroyed":
+                message = ClientDestroyedMessage.from_dict(d)
+
             elif message_type == "client_connected":
                 message = ClientConnectedMessage.from_dict(d)
 
@@ -217,8 +300,14 @@ class FixToolProxy(object):
             elif message_type == "server_created":
                 message = ServerCreatedMessage.from_dict(d)
 
+            elif message_type == "server_destroyed":
+                message = ServerDestroyedMessage.from_dict(d)
+
             elif message_type == "server_listened":
                 message = ServerListenedMessage.from_dict(d)
+
+            elif message_type == "server_unlistened":
+                message = ServerUnlistenedMessage.from_dict(d)
 
             elif message_type == "server_pending_accept_response":
                 message = ServerPendingAcceptCountResponse.from_dict(d)
@@ -233,3 +322,12 @@ class FixToolProxy(object):
                 message = ServerDisconnectedMessage.from_dict(d)
 
             return message
+
+    def remove_client(self, name):
+        del self._clients[name]
+        return
+
+    def remove_server(self, name):
+        del self._servers[name]
+        return
+

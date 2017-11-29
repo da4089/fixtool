@@ -179,6 +179,45 @@ class ServerListenedMessage:
                                      d.get("message"))
 
 
+class ServerUnlistenMessage:
+    def __init__(self, name: str, port: int):
+        self.type = "server_unlisten"
+        self.name = name
+        self.port = port
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "port": self.port})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerUnlistenMessage(d.get("name"),
+                                     d.get("port"))
+
+
+class ServerUnlistenedMessage:
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "server_unlistened"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerUnlistenedMessage(d.get("name"),
+                                       d.get("result"),
+                                       d.get("message"))
+
+
 class ServerPendingAcceptCountRequest:
     def __init__(self, name: str):
         self.type = "server_pending_accept_request"
@@ -373,3 +412,75 @@ class ServerDisconnectedMessage:
         return ServerDisconnectedMessage(d.get("name"),
                                          d.get("result"),
                                          d.get("message"))
+
+
+class ClientDestroyMessage:
+    def __init__(self, name: str):
+        self.type = "client_destroy"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientDestroyMessage(d.get("name"))
+
+
+class ClientDestroyedMessage:
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "client_destroyed"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientDestroyedMessage(d.get("name"),
+                                      d.get("result"),
+                                      d.get("message"))
+
+
+class ServerDestroyMessage:
+    def __init__(self, name: str):
+        self.type = "server_destroy"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerDestroyMessage(d.get("name"))
+
+
+class ServerDestroyedMessage:
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "server_destroyed"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerDestroyedMessage(d.get("name"),
+                                      d.get("result"),
+                                      d.get("message"))

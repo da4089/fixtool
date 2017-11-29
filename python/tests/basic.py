@@ -50,4 +50,8 @@ class BasicTests(unittest.TestCase):
         server_session.disconnect()
         self.assertFalse(server_session.is_connected())
         self.assertFalse(client.is_connected())
+
+        client.destroy()
+        server_session.destroy()
+        server.destroy()
         return

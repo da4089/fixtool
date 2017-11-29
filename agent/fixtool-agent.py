@@ -78,7 +78,6 @@ class Client:
     def __init__(self, name: str):
         """Constructor."""
         self._name = name
-        self._begin_string = b''
         self._comp_id = b''
         self._auto_heartbeat = True
         self._auto_sequence = True
@@ -97,6 +96,12 @@ class Client:
         self._recv_queue = []
         return
 
+    def destroy(self):
+        if self._is_connected:
+            self.disconnect()
+
+        return
+
     def connect(self, host: str, port: int):
         self._host = host
         self._port = port
@@ -110,10 +115,9 @@ class Client:
         return self._is_connected
 
     def disconnect(self):
+        asyncio.get_event_loop().remove_reader(self._socket)
         self._socket.close()
         self._is_connected = False
-
-    def login(self, sender, target, user, password):
         return
 
     def readable(self):
@@ -134,19 +138,27 @@ class Client:
 class Server:
     def __init__(self):
         """Constructor."""
-        self._begin_string = b''
-        self._comp_id = b''
         self._auto_heartbeat = True
         self._auto_sequence = True
         self._raw = False
         self._next_send_sequence = 0
         self._last_seen_sequence = 0
-
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.setblocking(False)
-        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
         self._pending_sessions = []
+        self._accepted_sessions = {}
+
+        self._socket = None
+        return
+
+    def destroy(self):
+        if self._socket is not None:
+            self.unlisten()
+
+        for session in self._pending_sessions:
+            session.destroy()
+        self._pending_sessions = []
+
+        for session in self._accepted_sessions.values():
+            session.destroy()
         self._accepted_sessions = {}
         return
 
@@ -158,10 +170,19 @@ class Server:
         """Listen for client connections.
 
         :param port: TCP port number to listen on."""
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setblocking(False)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._socket.bind(('', port))
         self._socket.listen(5)
 
         asyncio.get_event_loop().add_reader(self._socket, self.acceptable)
+        return
+
+    def unlisten(self, port: int):
+        asyncio.get_event_loop().remove_reader(self._socket)
+        self._socket.close()
+        self._socket = None
         return
 
     def acceptable(self):
@@ -205,6 +226,12 @@ class ServerSession:
         asyncio.get_event_loop().add_reader(sock, self.readable)
         return
 
+    def destroy(self):
+        if self._is_connected:
+            self.disconnect()
+        self._queue = []
+        return
+
     def set_name(self, name: str):
         self._name = name
         return
@@ -229,8 +256,10 @@ class ServerSession:
 
     def disconnect(self):
         """Close this session."""
-        self._is_connected = False
+        asyncio.get_event_loop().remove_reader(self._socket)
         self._socket.close()
+        self._socket = None
+        self._is_connected = False
         return
 
     def receive_queue_length(self):
@@ -346,6 +375,7 @@ class FixToolAgent(object):
         control_session = self._control_sessions[sock]
         buf = sock.recv(65536)
         if len(buf) == 0:
+            self._loop.remove_reader(sock)
             del self._control_sessions[sock]
             control_session.close()
             logging.log(logging.INFO, "Disconnected control session.")
@@ -374,11 +404,20 @@ class FixToolAgent(object):
         elif message_type == "client_is_connected_request":
             return self.handle_client_is_connected_request(client, message)
 
+        elif message_type == "client_destroy":
+            return self.handle_client_destroy(client, message)
+
         elif message_type == "server_create":
             return self.handle_server_create(client, message)
 
+        elif message_type == "server_destroy":
+            return self.handle_server_destroy(client, message)
+
         elif message_type == "server_listen":
             return self.handle_server_listen(client, message)
+
+        elif message_type == "server_unlisten":
+            return self.handle_server_unlisten(client, message)
 
         elif message_type == "server_pending_accept_request":
             return self.handle_server_pending_accept_request(client, message)
@@ -418,6 +457,22 @@ class FixToolAgent(object):
         self._clients[name] = Client(name)
 
         response = ClientCreatedMessage(name, True, '')
+        control.send(response.to_json().encode())
+        return
+
+    def handle_client_destroy(self, control: ControlSession, message: dict):
+        name = message.get("name")
+        client = self._clients.get(name)
+        if client is None:
+            response = ClientDestroyedMessage(name, False,
+                                              "No such client '$s'" % name)
+            control.send(response.to_json().encode())
+            return
+
+        client.destroy()
+        del self._clients[name]
+
+        response = ClientDestroyedMessage(name, True, '')
         control.send(response.to_json().encode())
         return
 
@@ -476,6 +531,22 @@ class FixToolAgent(object):
         client.send(response.to_json().encode())
         return
 
+    def handle_server_destroy(self, control: ControlSession, message: dict):
+        name = message.get("name")
+        server = self._servers.get(name)
+        if server is None:
+            response = ServerDestroyedMessage(name, False,
+                                              "No such server '$s'" % name)
+            control.send(response.to_json().encode())
+            return
+
+        server.destroy()
+        del self._servers[name]
+
+        response = ServerDestroyedMessage(name, True, '')
+        control.send(response.to_json().encode())
+        return
+
     def handle_server_listen(self, client: ControlSession, message: dict):
         name = message["name"]
         server = self._servers.get(name)
@@ -495,6 +566,28 @@ class FixToolAgent(object):
         server.listen(port)
 
         response = ServerListenedMessage(name, True, '')
+        client.send(response.to_json().encode())
+        return
+
+    def handle_server_unlisten(self, client: ControlSession, message: dict):
+        name = message["name"]
+        server = self._servers.get(name)
+        if server is None:
+            response = ServerUnlistenedMessage(name, False,
+                                               "No such server '%s'" % name)
+            client.send(response.to_json().encode())
+            return
+
+        port = message.get("port")
+        if port is None or port < 0 or port > 65535:
+            response = ServerUnlistenedMessage(name, False,
+                                               "Bad or missing port")
+            client.send(response.to_json().encode())
+            return
+
+        server.unlisten(port)
+
+        response = ServerUnlistenedMessage(name, True, '')
         client.send(response.to_json().encode())
         return
 
