@@ -659,6 +659,13 @@ class FixToolAgent(object):
 def main():
     """Main function for agent."""
 
+    # FIXME: -h / --help
+    # FIXME: -v / --version
+    # FIXME: -l / --loglevel
+    # FIXME: start
+    # FIXME: stop
+    # FIXME: reset
+    
     # FIXME: use logging, but write to stdout for systemd.
     logging.basicConfig(level=logging.DEBUG)
     logging.log(logging.INFO, "Starting")
