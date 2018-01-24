@@ -60,7 +60,7 @@
 # - server_disconnect / server_disconnected
 
 
-
+import argparse
 import asyncio
 import logging
 import os
@@ -348,6 +348,8 @@ class FixToolAgent(object):
 
         self._loop = asyncio.get_event_loop()
         self._loop.add_reader(self._socket, self.accept)
+
+        self._loop.add_signal_handler(signal.SIGINT, self.handle_sigint)
         return
 
     def run(self):
@@ -358,6 +360,11 @@ class FixToolAgent(object):
     def stop(self):
         """Exit mainloop."""
         self._loop.stop()
+        return
+
+    def handle_sigint(self, *args):
+        """Handle SIGINT."""
+        self.stop()
         return
 
     def accept(self):
@@ -659,41 +666,60 @@ class FixToolAgent(object):
 def main():
     """Main function for agent."""
 
-    # FIXME: -h / --help
-    # FIXME: -v / --version
-    # FIXME: -l / --loglevel
-    # FIXME: start
-    # FIXME: stop
-    # FIXME: reset
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--version",
+                        action="version",
+                        version="1.0.0")  # FIXME
+    parser.add_argument("-l", "--loglevel",
+                        help="One of DEBUG, INFO, WARNING, ERROR, CRIT")
+    parser.add_argument("-f", "--foreground",
+                        action="store_true",
+                        help="Don't daemonise; run in the foreground")
+    parser.add_argument("action", type=str,
+                        choices=("start", "stop", "reset", "show"),
+                        help="Action to perform")
+    args = parser.parse_args()
+
+
     # FIXME: use logging, but write to stdout for systemd.
     logging.basicConfig(level=logging.DEBUG)
     logging.log(logging.INFO, "Starting")
 
-    # FIXME: use similar requests as rnps FIX module?
-    # FIXME: use asyncio?  cjson over TCP?
-    # FIXME: use type annotations?
-
     # FIXME: replace all this pidfile malarky with a shutdown to a port number
     pid_file_name = "/tmp/%s-fixtool-agent.pid" % os.environ.get("LOGNAME")
 
-    if len(sys.argv) > 1:
-        command = sys.argv[1]
-        if command == "shutdown":
-            pid_file = open(pid_file_name)
-            pid = int(pid_file.readline())
-            os.kill(pid, signal.SIGINT)
-            sys.exit(0)
+    if args.action == "shutdown":
+        pid_file = open(pid_file_name)
+        pid = int(pid_file.readline())
+        os.kill(pid, signal.SIGINT)
+        sys.exit(0)
 
-    pid_file = open(pid_file_name, "wb")
-    pid_file.write(("%u\n" % os.getpid()).encode())
-    pid_file.close()
+    elif args.action == "start":
 
-    try:
-        agent = FixToolAgent()
-        agent.run()
-    finally:
-        os.remove(pid_file_name)
+        if not args.foreground:
+            pid = os.fork()
+            if pid != 0:
+                sys.exit(0)
+
+        pid_file = open(pid_file_name, "wb")
+        pid_file.write(("%u\n" % os.getpid()).encode())
+        pid_file.close()
+
+        try:
+            agent = FixToolAgent()
+            agent.run()
+        finally:
+            os.remove(pid_file_name)
+            print("Exiting.")
+
+    elif args.action == "reset":
+        print("Not yet implemented")
+        sys.exit(1)
+
+    elif args.action == "show":
+        # Report status and connectivity info for the active instance.
+        print ("Not yet implemented.")
+        sys.exit(1)
 
     return
 
