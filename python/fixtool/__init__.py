@@ -47,7 +47,12 @@ def spawn_agent():
     # deleted.
 
     agent = os.popen('fixtool-agent start')
-    s = agent.read()
+    s = agent.readline()
+
+    if s[:2] != "OK":
+        logging.error("Agent process reported error on start.")
+        return
+
     try:
         port = int(s)
     except ValueError:

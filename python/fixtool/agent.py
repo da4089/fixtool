@@ -72,6 +72,7 @@ import sys
 import json
 
 from fixtool.message import *
+from fixtool.proxy import FixToolProxy
 
 
 class Client:
@@ -132,7 +133,6 @@ class Client:
             self._recv_queue.append(message)
             message = self._parser.get_message()
         return
-
 
 
 class Server:
@@ -329,9 +329,10 @@ class ControlSession:
 class FixToolAgent(object):
     """ """
 
-    def __init__(self):
-        """Constructor."""
-        self._port = 11011
+    def __init__(self, port=0):
+        """Constructor.
+
+        :param port: TCP port number for accepting control sessions."""
         self._socket = None
         self._loop = None
 
@@ -343,14 +344,20 @@ class FixToolAgent(object):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.setblocking(False)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.bind(('0.0.0.0', self._port))
+        self._socket.bind(('0.0.0.0', port))
         self._socket.listen(5)
 
         self._loop = asyncio.get_event_loop()
         self._loop.add_reader(self._socket, self.accept)
-
         self._loop.add_signal_handler(signal.SIGINT, self.handle_sigint)
+
+        name = self._socket.getsockname()
+        self._port = name[1]
         return
+
+    def port(self):
+        """Get the active control sessions port number."""
+        return self._port
 
     def run(self):
         """Enter mainloop."""
@@ -453,8 +460,8 @@ class FixToolAgent(object):
         else:
             return
 
-    def handle_shutdown(selfself, control: ControlSession, message: dict):
-        logging.info("shutdown() requested")
+    def handle_shutdown(self, control: ControlSession, message: dict):
+        logging.info("agent shutdown() requested")
         self.stop()
         return
 
@@ -678,45 +685,51 @@ def main():
                         action="version",
                         version="1.0.0")  # FIXME
     parser.add_argument("-l", "--loglevel",
+                        default="WARNING",
                         help="One of DEBUG, INFO, WARNING, ERROR, CRIT")
     parser.add_argument("-f", "--foreground",
                         action="store_true",
                         help="Don't daemonise; run in the foreground")
+    parser.add_argument("-p", "--port", type=int,
+                        help="TCP port number for control sessions")
     parser.add_argument("action", type=str,
                         choices=("start", "stop", "reset", "show"),
                         help="Action to perform")
     args = parser.parse_args()
 
-
-    # FIXME: use logging, but write to stdout for systemd.
-    logging.basicConfig(level=logging.DEBUG)
+    # Logging.
+    level = logging._nameToLevel.get(args.loglevel, logging.DEBUG)
+    logging.basicConfig(level=level)
     logging.log(logging.INFO, "Starting")
 
-    # FIXME: replace all this pidfile malarky with a shutdown to a port number
-    pid_file_name = "/tmp/%s-fixtool-agent.pid" % os.environ.get("LOGNAME")
+    # Dispatch.
+    if args.action == "stop":
+        if not args.port:
+            print("Error: need port number for 'stop' action.")
+            sys.exit(1)
 
-    if args.action == "shutdown":
-        pid_file = open(pid_file_name)
-        pid = int(pid_file.readline())
-        os.kill(pid, signal.SIGINT)
-        sys.exit(0)
+        try:
+            proxy = FixToolProxy('localhost', args.port)
+            proxy.shutdown()
+            sys.exit(0)
+
+        except ConnectionRefusedError:
+            print("Error: no agent running on port " + str(args.port))
+
+        sys.exit(1)
 
     elif args.action == "start":
-
         if not args.foreground:
             pid = os.fork()
             if pid != 0:
                 sys.exit(0)
 
-        pid_file = open(pid_file_name, "wb")
-        pid_file.write(("%u\n" % os.getpid()).encode())
-        pid_file.close()
-
         try:
-            agent = FixToolAgent()
+            agent = FixToolAgent(args.port)
+            print("OK " + str(agent.port()))
             agent.run()
+
         finally:
-            os.remove(pid_file_name)
             print("Exiting.")
 
     elif args.action == "reset":
