@@ -25,6 +25,7 @@
 
 import logging
 import os
+import stat
 from .proxy import FixToolProxy
 
 
@@ -46,15 +47,43 @@ def spawn_agent():
     # but will also be implicitly killed if the proxy instance is
     # deleted.
 
-    agent = os.popen('fixtool-agent start')
+    # Look for fixtool-agent in PATH, then parent dirs of $CWD
+    path = os.getenv("PATH", "")
+    path_dirs = path.split(os.pathsep)
+    cwd = os.path.realpath(os.curdir)
+    while cwd != "/":
+        path_dirs.append(cwd)
+        cwd = os.path.dirname(cwd)
+
+    fixtool_agent = None
+    for dir_name in path_dirs:
+        file_name = os.path.join(dir_name, "fixtool-agent")
+        if os.path.exists(file_name):
+            mode = os.stat(file_name).st_mode
+            if mode & stat.S_IXUSR or \
+                    mode & stat.S_IXGRP or \
+                    mode & stat.S_IXOTH:
+                fixtool_agent = file_name
+                break
+
+    if not fixtool_agent:
+        logging.error("Unable to find agent executable")
+        return
+
+    logging.info("Using agent: " + fixtool_agent)
+
+    agent = os.popen(fixtool_agent + ' start')
     s = agent.readline()
+    agent.close()  # Just the parent; the forked agent is still running
+
+    logging.info("Agent output: " + s)
 
     if s[:2] != "OK":
-        logging.error("Agent process reported error on start.")
+        logging.error("Failed to start agent: " + s)
         return
 
     try:
-        port = int(s)
+        port = int(s[3:])
     except ValueError:
         logging.error("Unable to read port number from agent output")
         return
