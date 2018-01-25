@@ -447,9 +447,16 @@ class FixToolAgent(object):
         elif message_type == "server_send_message":
             return
 
+        elif message_type == "shutdown":
+            return self.handle_shutdown(client, message)
+
         else:
             return
 
+    def handle_shutdown(selfself, control: ControlSession, message: dict):
+        logging.info("shutdown() requested")
+        self.stop()
+        return
 
     def handle_client_create(self, control: ControlSession, message: dict):
 

@@ -26,6 +26,20 @@
 import json
 
 
+class ShutdownMessage:
+    def __init__(self):
+        self.type = "shutdown"
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type})
+
+    @staticmethod
+    def from_dict(d):
+        assert d.get("type") == "shutdown"
+        return ShutdownMessage()
+
+
 class ClientCreateMessage:
     def __init__(self, name: str):
         self.type = "client_create"

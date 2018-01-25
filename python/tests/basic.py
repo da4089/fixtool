@@ -35,7 +35,14 @@ class BasicTests(unittest.TestCase):
     def tearDown(self):
         return
 
-    def test_connect_disconnect(self):
+    def test_spawn(self):
+        proxy = fixtool.spawn_agent()
+        self.assertIsNotNone(proxy)
+
+        proxy.shutdown()
+        return
+
+    def xxx_test_connect_disconnect(self):
         proxy = fixtool.FixToolProxy("localhost", 11011)
         client = proxy.create_client("c1")
         server = proxy.create_server("s1")

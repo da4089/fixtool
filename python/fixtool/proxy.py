@@ -327,6 +327,12 @@ class FixToolProxy(object):
         self._buffer = b''
         return
 
+    def shutdown(self):
+        """Shutdown the associated agent."""
+        message = ShutdownMessage()
+        self.send_request(message)
+        return
+
     def create_client(self, name: str):
         """Create a FIX client.
 

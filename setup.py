@@ -36,7 +36,14 @@ setup(name="fixtool",
       author="David Arnold",
       author_email="d+fixtool@0x1.org",
       license="MIT",
-      packages=["python/fixtool"],
+      install_requires=["simplefix>=1.0.8"],
+      package_dir= {"": "python"},
+      packages=["fixtool"],
+      entry_points={
+          "console_scripts": [
+              "fixtool-agent=fixtool.agent:main"
+          ]
+      },
       classifiers=[
         'Development Status :: 3 - Alpha',
         'Topic :: System :: Networking',
