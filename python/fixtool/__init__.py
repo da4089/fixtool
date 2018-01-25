@@ -68,25 +68,25 @@ def spawn_agent():
 
     if not fixtool_agent:
         logging.error("Unable to find agent executable")
-        return
+        return None
 
-    logging.info("Using agent: " + fixtool_agent)
+    logging.info("Using agent: %s", fixtool_agent)
 
     agent = os.popen(fixtool_agent + ' start')
     s = agent.readline()
     agent.close()  # Just the parent; the forked agent is still running
 
-    logging.info("Agent output: " + s)
+    logging.info("Agent output: %s", s)
 
     if s[:2] != "OK":
-        logging.error("Failed to start agent: " + s)
-        return
+        logging.error("Failed to start agent: %s", s)
+        return None
 
     try:
         port = int(s[3:])
     except ValueError:
         logging.error("Unable to read port number from agent output")
-        return
+        return None
 
     p = FixToolProxy("localhost", port)
     return p

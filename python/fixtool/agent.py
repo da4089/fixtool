@@ -62,6 +62,7 @@
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import simplefix
@@ -69,8 +70,8 @@ import signal
 import socket
 import struct
 import sys
-import json
 
+# pylint: disable=unused-wildcard-import
 from fixtool.message import *
 from fixtool.proxy import FixToolProxy
 
@@ -123,7 +124,7 @@ class Client:
 
     def readable(self):
         buf = self._socket.recv(65536)
-        if len(buf) == 0:
+        if not buf:
             self.disconnect()
             return
 
@@ -179,7 +180,7 @@ class Server:
         asyncio.get_event_loop().add_reader(self._socket, self.acceptable)
         return
 
-    def unlisten(self, port: int):
+    def unlisten(self):
         asyncio.get_event_loop().remove_reader(self._socket)
         self._socket.close()
         self._socket = None
@@ -239,7 +240,7 @@ class ServerSession:
     def readable(self):
         """Handle readable event on session's socket."""
         buf = self._socket.recv(65536)
-        if len(buf) == 0:
+        if not buf:
             self._is_connected = False
             return
 
@@ -296,12 +297,12 @@ class ControlSession:
         self._buffer += buffer
         if len(self._buffer) <= 4:
             # No payload yet
-            return
+            return None
 
         payload_length = struct.unpack(b'>L', self._buffer[:4])[0]
         if len(buffer) < 4 + payload_length:
             # Not received full message yet
-            return
+            return None
         self._buffer = self._buffer[4:]
 
         payload = self._buffer[:payload_length]
@@ -367,8 +368,10 @@ class FixToolAgent(object):
         self._loop.stop()
         return
 
-    def handle_sigint(self, *args):
+    def handle_sigint(self, signum, frame):
         """Handle SIGINT."""
+        # pylint: disable=unused-argument
+        logging.info("Exiting on C-c.")
         self.stop()
         return
 
@@ -378,7 +381,7 @@ class FixToolAgent(object):
         self._loop.add_reader(sock, self.readable, sock)
         self._control_sessions[sock] = ControlSession(sock)
 
-        logging.log(logging.INFO, "Accepted control session from %s" % addr[0])
+        logging.info("Accepted control session from %s", addr[0])
         return
 
     def readable(self, sock):
@@ -386,7 +389,7 @@ class FixToolAgent(object):
         logging.log(logging.DEBUG, "Control session readable")
         control_session = self._control_sessions[sock]
         buf = sock.recv(65536)
-        if len(buf) == 0:
+        if not buf:
             self._loop.remove_reader(sock)
             del self._control_sessions[sock]
             control_session.close()
@@ -398,13 +401,14 @@ class FixToolAgent(object):
             message = json.loads(payload.decode())
             self.handle_request(control_session, message)
             payload = None  # FIXME: deal with multiple messages
+
         return
 
     def handle_request(self, client, message):
         """Process a received message."""
 
         message_type = message["type"]
-        logging.log(logging.DEBUG, "Dispatching [%s]" % message_type)
+        logging.debug("Dispatching [%s]", message_type)
         if message_type == "client_create":
             return self.handle_client_create(client, message)
 
@@ -442,21 +446,21 @@ class FixToolAgent(object):
             return self.handle_server_disconnect(client, message)
 
         elif message_type == "server_queue_length":
-            return
+            return None
 
         elif message_type == "server_get_message":
-            return
+            return None
 
         elif message_type == "server_send_message":
-            return
+            return None
 
         elif message_type == "shutdown":
             return self.handle_shutdown(client, message)
 
-        else:
-            return
+        return None
 
     def handle_shutdown(self, control: ControlSession, message: dict):
+        # pylint: disable=unused-argument
         logging.info("agent shutdown() requested")
         self.stop()
         return
@@ -464,7 +468,7 @@ class FixToolAgent(object):
     def handle_client_create(self, control: ControlSession, message: dict):
 
         name = message.get("name")
-        logging.log(logging.INFO, "client_create(%s)" % name)
+        logging.info("client_create(%s)", name)
         if name in self._clients:
             response = ClientCreatedMessage(name, False,
                                             "Client %s already exists" % name)
@@ -595,14 +599,7 @@ class FixToolAgent(object):
             client.send(response.to_json().encode())
             return
 
-        port = message.get("port")
-        if port is None or port < 0 or port > 65535:
-            response = ServerUnlistenedMessage(name, False,
-                                               "Bad or missing port")
-            client.send(response.to_json().encode())
-            return
-
-        server.unlisten(port)
+        server.unlisten()
 
         response = ServerUnlistenedMessage(name, True, '')
         client.send(response.to_json().encode())
