@@ -395,11 +395,9 @@ class FixToolAgent(object):
             logging.log(logging.INFO, "Disconnected control session.")
             return
 
-        print(buf)
-
         payload = control_session.append_bytes(buf)
         while payload is not None:
-            message = json.loads(payload)
+            message = json.loads(payload.decode())
             self.handle_request(control_session, message)
             payload = None  # FIXME: deal with multiple messages
         return
