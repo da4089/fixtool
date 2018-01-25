@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 ########################################################################
 # fixtool
-# Copyright (C) 2017, David Arnold.
+# Copyright (C) 2017-2018, David Arnold.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -36,6 +36,7 @@ setup(name="fixtool",
       author="David Arnold",
       author_email="d+fixtool@0x1.org",
       license="MIT",
+      keywords="fix testing",
       install_requires=["simplefix>=1.0.8"],
       package_dir= {"": "python"},
       packages=["fixtool"],
@@ -51,6 +52,7 @@ setup(name="fixtool",
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         ],
       )
