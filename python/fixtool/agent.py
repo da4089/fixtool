@@ -299,14 +299,12 @@ class ControlSession:
             return
 
         payload_length = struct.unpack(b'>L', self._buffer[:4])[0]
-        print("payload_length " + str(payload_length))
         if len(buffer) < 4 + payload_length:
             # Not received full message yet
             return
         self._buffer = self._buffer[4:]
 
         payload = self._buffer[:payload_length]
-        print(payload)
         self._buffer = self._buffer[payload_length:]
         return payload
 
@@ -689,6 +687,7 @@ def main():
                         action="store_true",
                         help="Don't daemonise; run in the foreground")
     parser.add_argument("-p", "--port", type=int,
+                        default=0,
                         help="TCP port number for control sessions")
     parser.add_argument("action", type=str,
                         choices=("start", "stop", "reset", "show"),
@@ -703,7 +702,7 @@ def main():
     # Dispatch.
     if args.action == "stop":
         if not args.port:
-            print("Error: need port number for 'stop' action.")
+            print("ERROR need port number for 'stop' action.")
             sys.exit(1)
 
         try:
@@ -712,7 +711,7 @@ def main():
             sys.exit(0)
 
         except ConnectionRefusedError:
-            print("Error: no agent running on port " + str(args.port))
+            print("ERROR no agent running on port " + str(args.port))
 
         sys.exit(1)
 
@@ -725,18 +724,19 @@ def main():
         try:
             agent = FixToolAgent(args.port)
             print("OK " + str(agent.port()))
+            sys.stdout.flush()
             agent.run()
 
         finally:
-            print("Exiting.")
+            print("EXIT")
 
     elif args.action == "reset":
-        print("Not yet implemented")
+        print("ERROR 'reset' action not yet implemented")
         sys.exit(1)
 
     elif args.action == "show":
         # Report status and connectivity info for the active instance.
-        print ("Not yet implemented.")
+        print ("ERROR 'show' action not yet implemented.")
         sys.exit(1)
 
     return
