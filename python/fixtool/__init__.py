@@ -23,6 +23,8 @@
 #
 ##################################################################
 
+"""FIX protocol simulator and control APIs."""
+
 import logging
 import os
 import stat
@@ -73,20 +75,20 @@ def spawn_agent():
     logging.info("Using agent: %s", fixtool_agent)
 
     agent = os.popen(fixtool_agent + ' start')
-    s = agent.readline()
+    status = agent.readline()
     agent.close()  # Just the parent; the forked agent is still running
 
-    logging.info("Agent output: %s", s)
+    logging.info("Agent output: %s", status)
 
-    if s[:2] != "OK":
-        logging.error("Failed to start agent: %s", s)
+    if status[:2] != "OK":
+        logging.error("Failed to start agent: %s", status)
         return None
 
     try:
-        port = int(s[3:])
+        port = int(status[3:])
     except ValueError:
         logging.error("Unable to read port number from agent output")
         return None
 
-    p = FixToolProxy("localhost", port)
-    return p
+    agent_proxy = FixToolProxy("localhost", port)
+    return agent_proxy

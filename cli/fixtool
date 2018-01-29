@@ -23,6 +23,8 @@
 #
 ##################################################################
 
+"""CLI for controlling fixtool FIX protocol simulator."""
+
 import fixtool
 
 

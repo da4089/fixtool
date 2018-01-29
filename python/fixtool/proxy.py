@@ -23,10 +23,13 @@
 #
 ##################################################################
 
+"""Python API to fixtool simulator agent."""
+
 import json
-import simplefix
 import socket
 import struct
+
+import simplefix
 
 from fixtool.message import *
 

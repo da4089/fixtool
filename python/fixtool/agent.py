@@ -65,11 +65,12 @@ import asyncio
 import json
 import logging
 import os
-import simplefix
 import signal
 import socket
 import struct
 import sys
+
+import simplefix
 
 # pylint: disable=unused-wildcard-import
 from fixtool.message import *
@@ -77,6 +78,8 @@ from fixtool.proxy import FixToolProxy
 
 
 class Client:
+    """Simulated FIX client."""
+
     def __init__(self, name: str):
         """Constructor."""
         self._name = name
@@ -99,12 +102,17 @@ class Client:
         return
 
     def destroy(self):
+        """Destroy the client instance."""
         if self._is_connected:
             self.disconnect()
 
         return
 
     def connect(self, host: str, port: int):
+        """Attempt connection to a FIX server.
+
+        :param host: Server's host name or IP address.
+        :param port: Server's TCP port number."""
         self._host = host
         self._port = port
         self._socket.connect((self._host, self._port))
@@ -114,15 +122,18 @@ class Client:
         return
 
     def is_connected(self):
+        """Returns True if this client is connected to a server."""
         return self._is_connected
 
     def disconnect(self):
+        """Close the active server connection for this client."""
         asyncio.get_event_loop().remove_reader(self._socket)
         self._socket.close()
         self._is_connected = False
         return
 
     def readable(self):
+        """Handle received data on the client's server connection."""
         buf = self._socket.recv(65536)
         if not buf:
             self.disconnect()
@@ -151,6 +162,7 @@ class Server:
         return
 
     def destroy(self):
+        """Destroy the server instance."""
         if self._socket is not None:
             self.unlisten()
 
@@ -181,6 +193,7 @@ class Server:
         return
 
     def unlisten(self):
+        """Stop listening for client connections."""
         asyncio.get_event_loop().remove_reader(self._socket)
         self._socket.close()
         self._socket = None
@@ -197,7 +210,7 @@ class Server:
         """Return number of pending client sessions."""
         return len(self._pending_sessions)
 
-    def accept_client_session(self, name:str):
+    def accept_client_session(self, name: str):
         """Accept a pending client session.
 
         :param name: Name for client session."""
@@ -212,6 +225,8 @@ class Server:
 
 
 class ServerSession:
+    """Server state of an active client connection."""
+
     def __init__(self, server: Server, sock: socket.SocketType):
         """Constructor.
 
@@ -228,12 +243,17 @@ class ServerSession:
         return
 
     def destroy(self):
+        """Destroy the active session to a client."""
         if self._is_connected:
             self.disconnect()
         self._queue = []
         return
 
     def set_name(self, name: str):
+        """Set the user-visible name of this session.
+
+        :param name: User-visible name for this session, as used
+        in logging, etc."""
         self._name = name
         return
 
@@ -274,7 +294,9 @@ class ServerSession:
         return self._queue.pop(0)
 
     def send_message(self, message: simplefix.FixMessage):
-        """Send a message to the connected client."""
+        """Send a message to the connected client.
+
+        :param message: Send a message to the connected client."""
         buffer = message.encode()
         self._socket.sendall(buffer)
         return
@@ -282,6 +304,7 @@ class ServerSession:
 
 class ControlSession:
     """Control client session."""
+
     def __init__(self, sock: socket.SocketType):
         """Constructor.
 
@@ -326,7 +349,7 @@ class ControlSession:
 
 
 class FixToolAgent(object):
-    """ """
+    """Main class for the simulation agent."""
 
     def __init__(self, port=0):
         """Constructor.
@@ -440,79 +463,94 @@ class FixToolAgent(object):
 
         message_type = message["type"]
         logging.debug("Dispatching [%s]", message_type)
+
         if message_type == "client_create":
-            return self.handle_client_create(client, message)
+            self.handle_client_create(client, message)
 
         elif message_type == "client_connect":
-            return self.handle_client_connect(client, message)
+            self.handle_client_connect(client, message)
 
         elif message_type == "client_is_connected_request":
-            return self.handle_client_is_connected_request(client, message)
+            self.handle_client_is_connected_request(client, message)
 
         elif message_type == "client_destroy":
-            return self.handle_client_destroy(client, message)
+            self.handle_client_destroy(client, message)
 
         elif message_type == "server_create":
-            return self.handle_server_create(client, message)
+            self.handle_server_create(client, message)
 
         elif message_type == "server_destroy":
-            return self.handle_server_destroy(client, message)
+            self.handle_server_destroy(client, message)
 
         elif message_type == "server_listen":
-            return self.handle_server_listen(client, message)
+            self.handle_server_listen(client, message)
 
         elif message_type == "server_unlisten":
-            return self.handle_server_unlisten(client, message)
+            self.handle_server_unlisten(client, message)
 
         elif message_type == "server_pending_accept_request":
-            return self.handle_server_pending_accept_request(client, message)
+            self.handle_server_pending_accept_request(client, message)
 
         elif message_type == "server_accept":
-            return self.handle_server_accept(client, message)
+            self.handle_server_accept(client, message)
 
         elif message_type == "server_is_connected_request":
-            return self.handle_server_is_connected_request(client, message)
+            self.handle_server_is_connected_request(client, message)
 
         elif message_type == "server_disconnect":
-            return self.handle_server_disconnect(client, message)
+            self.handle_server_disconnect(client, message)
 
         elif message_type == "server_queue_length":
-            return None
+            #FIXME
+            pass
 
         elif message_type == "server_get_message":
-            return None
+            #FIXME
+            pass
 
         elif message_type == "server_send_message":
-            return None
+            #FIXME
+            pass
 
         elif message_type == "shutdown":
-            return self.handle_shutdown(client, message)
+            self.handle_shutdown(client, message)
 
-        return None
+        return
 
     def handle_shutdown(self, control: ControlSession, message: dict):
+        """Handle a 'shutdown' request message.
+
+        :param control: Control session.
+        :param message: Control message."""
         # pylint: disable=unused-argument
         logging.info("agent shutdown() requested")
         self.stop()
-        return
+        return None
 
     def handle_client_create(self, control: ControlSession, message: dict):
+        """Handler a 'client_create' request message.
 
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         logging.info("client_create(%s)", name)
         if name in self._clients:
             response = ClientCreatedMessage(name, False,
                                             "Client %s already exists" % name)
             control.send(response.to_json().encode())
-            return
+            return None
 
         self._clients[name] = Client(name)
 
         response = ClientCreatedMessage(name, True, '')
         control.send(response.to_json().encode())
-        return
+        return None
 
     def handle_client_destroy(self, control: ControlSession, message: dict):
+        """Handle a 'client_destroy' message.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         client = self._clients.get(name)
         if client is None:
@@ -529,6 +567,10 @@ class FixToolAgent(object):
         return
 
     def handle_client_connect(self, control: ControlSession, message: dict):
+        """Handle a 'client_connect' message.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         client = self._clients.get(name)
         if client is None:
@@ -545,6 +587,10 @@ class FixToolAgent(object):
 
     def handle_client_is_connected_request(self, control: ControlSession,
                                            message: dict):
+        """Handle a 'client_is_connected' request.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         client = self._clients.get(name)
         if client is None:
@@ -584,6 +630,10 @@ class FixToolAgent(object):
         return
 
     def handle_server_destroy(self, control: ControlSession, message: dict):
+        """Handle a 'server_destroy' request.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         server = self._servers.get(name)
         if server is None:
@@ -600,6 +650,10 @@ class FixToolAgent(object):
         return
 
     def handle_server_listen(self, client: ControlSession, message: dict):
+        """Handle a 'server_listen' message.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message["name"]
         server = self._servers.get(name)
         if server is None:
@@ -622,6 +676,10 @@ class FixToolAgent(object):
         return
 
     def handle_server_unlisten(self, client: ControlSession, message: dict):
+        """Handle a 'server_unlisten' request.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message["name"]
         server = self._servers.get(name)
         if server is None:
@@ -639,6 +697,10 @@ class FixToolAgent(object):
     def handle_server_pending_accept_request(self,
                                              control: ControlSession,
                                              message: dict):
+        """Handle a 'server_pending_accept' request.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message["name"]
         server = self._servers.get(name)
         if server is None:
@@ -653,6 +715,10 @@ class FixToolAgent(object):
         return
 
     def handle_server_accept(self, control: ControlSession, message: dict):
+        """Handle a 'server_accept' request.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message["name"]
         server = self._servers.get(name)
         if server is None:
@@ -670,6 +736,10 @@ class FixToolAgent(object):
 
     def handle_server_is_connected_request(self, control: ControlSession,
                                            message: dict):
+        """Handle 'server_is_connected' request.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         server_session = self._server_sessions.get(name)
         if server_session is None:
@@ -686,6 +756,10 @@ class FixToolAgent(object):
         return
 
     def handle_server_disconnect(self, control: ControlSession, message: dict):
+        """Handle 'server_disconnect' request.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         server_session = self._server_sessions.get(name)
         if server_session is None:
@@ -769,7 +843,7 @@ def main():
 
     elif args.action == "show":
         # Report status and connectivity info for the active instance.
-        print ("ERROR 'show' action not yet implemented.")
+        print("ERROR 'show' action not yet implemented.")
         sys.exit(1)
 
     return
