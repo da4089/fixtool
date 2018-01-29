@@ -288,10 +288,15 @@ class ServerSession(object):
 
         :param message: FIX message to send."""
 
-        # FIXME: define messages and implementation.
         assert message
         assert self._connected
 
+        request = ServerSendMessage(self._name)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
         return
 
     def receive_queue_length(self):

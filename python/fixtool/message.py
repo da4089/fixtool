@@ -49,7 +49,13 @@ __all__ = ["ShutdownMessage",
            "ClientDestroyMessage",
            "ClientDestroyedMessage",
            "ServerDestroyMessage",
-           "ServerDestroyedMessage"]
+           "ServerDestroyedMessage",
+           "ServerSendMessage",
+           "ServerSentMessage",
+           "ServerReceiveCountRequest",
+           "ServerReceiveCountResponse",
+           "ServerReceiveMessage",
+           "ServerReceivedMessage"]
 
 
 class ShutdownMessage:
@@ -524,3 +530,133 @@ class ServerDestroyedMessage:
         return ServerDestroyedMessage(d.get("name"),
                                       d.get("result"),
                                       d.get("message"))
+
+
+class ServerSendMessage:
+    """Request message be sent from server to client."""
+    def __init__(self, name: str, payload: bytes):
+        self.type = "server_send"
+        self.name = name
+        self.payload = payload
+        return
+
+    def to_json(self):
+        #FIXME: going to have issues here with 3.5 and non-unicode payloads
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "payload": self.payload})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerSendMessage(d.get("name"),
+                                 d.get("payload"))
+
+
+class ServerSentMessage:
+    """Acknowledge message was sent from server to client."""
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "server_sent"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerSentMessage(d.get("name"),
+                                 d.get("result"),
+                                 d.get("message"))
+
+
+class ServerReceiveCountRequest:
+    """Request count of server's received messages."""
+
+    def __init__(self, name: str):
+        self.type = "server_receive_count_request"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerReceiveCountRequest(d.get("name"))
+
+
+class ServerReceiveCountResponse:
+    """Return count of server's received messages."""
+
+    def __init__(self, name: str, result: bool, message: str, count: int):
+        self.type = "server_receive_count_response"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.count = count
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "count": self.count})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerReceiveCountResponse(d.get("name"),
+                                          d.get("result"),
+                                          d.get("message"),
+                                          g.get("count"))
+
+
+class ServerReceiveMessage:
+    """Request message received by server."""
+
+    def __init__(self, name: str):
+        self.type = "server_receive"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerReceiveMessage(d.get("name"))
+
+
+class ServerReceivedMessage:
+    """Deliver message received by server to controler."""
+
+    def __init__(self, name: str, result: bool, message: str, payload: bytes):
+        self.type = "server_received"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.payload = payload
+        return
+
+    def to_json(self):
+        #FIXME: going to have issues here with 3.5 and non-unicode payloads
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "payload": self.payload})
+
+    @staticmethod
+    def from_dict(d):
+        return ServerReceivedMessage(d.get("name"),
+                                     d.get("result"),
+                                     d.get("message"),
+                                     d.get("payload"))
+
