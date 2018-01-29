@@ -368,6 +368,37 @@ class FixToolAgent(object):
         self._loop.stop()
         return
 
+    def shutdown(self):
+        """Clean up for exit."""
+
+        # Server listening sockets.
+        for server in self._servers:
+            server.destroy()
+        self._servers = {}
+
+        # Client sessions.
+        for client in self._clients:
+            client.destroy()
+        self._clients = {}
+
+        # Control sessions.
+        for sock, session in self._control_sessions.items():
+            self._loop.remove_reader(sock)
+            session.close()
+        self._control_sessions = {}
+
+        # Control session listening socket.
+        self._loop.remove_reader(self._socket)
+        self._socket.close()
+        self._socket = None
+        self._port = None
+
+        # Event loop.
+        self._loop.remove_signal_handler(signal.SIGINT)
+        self._loop.close()
+        self._loop = None
+        return
+
     def handle_sigint(self, signum, frame):
         """Handle SIGINT."""
         # pylint: disable=unused-argument
@@ -720,12 +751,17 @@ def main():
 
         try:
             agent = FixToolAgent(args.port)
-            print("OK " + str(agent.port()))
-            sys.stdout.flush()
-            agent.run()
+        except OSError:
+            print("ERROR creating agent on port " + str(args.port))
+            sys.exit(1)
 
+        print("OK " + str(agent.port()))
+        sys.stdout.flush()
+
+        try:
+            agent.run()
         finally:
-            print("EXIT")
+            agent.shutdown()
 
     elif args.action == "reset":
         print("ERROR 'reset' action not yet implemented")
