@@ -384,7 +384,7 @@ class FixToolProxy(object):
             message_buf = self._buffer[:message_length]
             self._buffer = self._buffer[message_length:]
 
-            d = json.loads(message_buf)
+            d = json.loads(message_buf.decode())
             message = None
             message_type = d.get("type")
             if message_type == "client_created":
