@@ -42,6 +42,32 @@ class BasicTests(unittest.TestCase):
         proxy.shutdown()
         return
 
+    def test_create_server(self):
+        proxy = fixtool.spawn_agent()
+        self.assertIsNotNone(proxy)
+
+        s1 = proxy.create_server("s1")
+        s1.listen(23456)
+
+        c1 = proxy.create_client("c1")
+        c1.connect('localhost', 23456)
+
+        self.assertEqual(1, s1.pending_accept_count())
+        cs1 = s1.accept("cs1")
+        self.assertTrue(c1.is_connected())
+        self.assertTrue(cs1.is_connected())
+
+        c1.send("hello")
+        self.assertEqual(1, cs1.receive_queue_length())
+
+        m1 = cs1.receive()
+        self.assertEqual("hello", m1)
+
+        c1.destroy()
+        s1.destroy()
+        proxy.shutdown()
+        return
+
     def xxx_test_connect_disconnect(self):
         proxy = fixtool.FixToolProxy("localhost", 11011)
         client = proxy.create_client("c1")
