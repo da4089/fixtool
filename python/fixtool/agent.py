@@ -665,16 +665,23 @@ class FixToolAgent(object):
     def handle_client_receive_count_request(self,
                                             control: ControlSession,
                                             message: dict):
+        """Process a 'client_get' message.
+
+        :param control: Control session.
+        :param message: Control message."""
         name = message.get("name")
         client: Client = self._clients.get(name)
         if client is None:
+            logging.warning("No sucj client: %s" % name)
             response = ClientReceiveCountResponse(name, False,
                                                   "No such client: %s" % name,
                                                   0)
             control.send(response.to_json().encode())
             return
 
-        count = message.get("count")
+        count = client.receive_queue_length()
+        logging.info("client_receive_count_request(%s): "
+                     "%d" % (name, count))
         response = ClientReceiveCountResponse(name, True, '', count)
         control.send(response.to_json().encode())
         return
@@ -693,8 +700,8 @@ class FixToolAgent(object):
             control.send(response.to_json().encode())
             return
 
-        fix_message: simplefix.FixMessage = client.get_message()
-        buffer = fix_message.encode()
+        fix_message = client.get_message()
+        buffer = base64.b64encode(fix_message).decode("ascii")
         response = ClientGotMessage(name, True, '', buffer)
         control.send(response.to_json().encode())
         return
