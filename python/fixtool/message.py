@@ -28,8 +28,18 @@ import json
 __all__ = ["ShutdownMessage",
            "ClientCreateMessage",
            "ClientCreatedMessage",
+           "ClientDestroyMessage",
+           "ClientDestroyedMessage",
            "ClientConnectMessage",
            "ClientConnectedMessage",
+           "ClientIsConnectedRequest",
+           "ClientIsConnectedResponse",
+           "ClientSendMessage",
+           "ClientSentMessage",
+           "ClientReceiveCountRequest",
+           "ClientReceiveCountResponse",
+           "ClientGetMessage",
+           "ClientGotMessage",
            "ServerCreateMessage",
            "ServerCreatedMessage",
            "ServerListenMessage",
@@ -40,22 +50,18 @@ __all__ = ["ShutdownMessage",
            "ServerPendingAcceptCountResponse",
            "ServerAcceptMessage",
            "ServerAcceptedMessage",
-           "ClientIsConnectedRequest",
-           "ClientIsConnectedResponse",
            "ServerIsConnectedRequest",
            "ServerIsConnectedResponse",
            "ServerDisconnectMessage",
            "ServerDisconnectedMessage",
-           "ClientDestroyMessage",
-           "ClientDestroyedMessage",
            "ServerDestroyMessage",
            "ServerDestroyedMessage",
-           "ServerSendMessage",
-           "ServerSentMessage",
-           "ServerReceiveCountRequest",
-           "ServerReceiveCountResponse",
-           "ServerReceiveMessage",
-           "ServerReceivedMessage"]
+           "SessionSendMessage",
+           "SessionSentMessage",
+           "SessionReceiveCountRequest",
+           "SessionReceiveCountResponse",
+           "SessionGetMessage",
+           "SessionGotMessage"]
 
 
 class ShutdownMessage:
@@ -108,6 +114,42 @@ class ClientCreatedMessage:
                                     d.get("message"))
 
 
+class ClientDestroyMessage:
+    def __init__(self, name: str):
+        self.type = "client_destroy"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientDestroyMessage(d.get("name"))
+
+
+class ClientDestroyedMessage:
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "client_destroyed"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientDestroyedMessage(d.get("name"),
+                                      d.get("result"),
+                                      d.get("message"))
+
+
 class ClientConnectMessage:
     def __init__(self, name: str, host: str, port: int):
         self.type = "client_connect"
@@ -148,6 +190,171 @@ class ClientConnectedMessage:
         return ClientCreatedMessage(d.get("name"),
                                     d.get("result"),
                                     d.get("message"))
+
+
+class ClientIsConnectedRequest:
+    def __init__(self, name: str):
+        self.type = "client_is_connected_request"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientIsConnectedRequest(d.get("name"))
+
+
+class ClientIsConnectedResponse:
+    def __init__(self, name: str, result: bool, message: str, connected: bool):
+        self.type = "client_is_connected_response"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.connected = connected
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "connected": self.connected})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientIsConnectedResponse(d.get("name"),
+                                         d.get("result"),
+                                         d.get("message"),
+                                         d.get("connected"))
+
+
+class ClientSendMessage:
+    """Request message be sent from client to server."""
+
+    def __init__(self, name: str, payload: str):
+        self.type = "client_send"
+        self.name = name
+        self.payload = payload
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "payload": self.payload})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientSendMessage(d.get("name"),
+                                 d.get("payload"))
+
+
+class ClientSentMessage:
+    """Acknowledge message was sent from client to server."""
+
+    def __init__(self, name: str, result: bool, message: str):
+        self.type = "client_sent"
+        self.name = name
+        self.result = result
+        self.message = message
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientSentMessage(d.get("name"),
+                                 d.get("result"),
+                                 d.get("message"))
+
+
+class ClientReceiveCountRequest:
+    """Request count of client's received messages."""
+
+    def __init__(self, name: str):
+        self.type = "client_receive_count_request"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientReceiveCountRequest(d.get("name"))
+
+
+class ClientReceiveCountResponse:
+    """Return count of client's received messages."""
+
+    def __init__(self, name: str, result: bool, message: str, count: int):
+        self.type = "client_receive_count_response"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.count = count
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "count": self.count})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientReceiveCountResponse(d.get("name"),
+                                          d.get("result"),
+                                          d.get("message"),
+                                          d.get("count"))
+
+
+class ClientGetMessage:
+    def __init__(self, name: str):
+        self.type = "client_get"
+        self.name = name
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientGetMessage(d.get("name"))
+
+
+class ClientGotMessage:
+    def __init__(self, name: str, result: bool, message: str,
+                 payload):
+        self.type = "client_got"
+        self.name = name
+        self.result = result
+        self.message = message
+        self.payload = payload
+        return
+
+    def to_json(self):
+        return json.dumps({"type": self.type,
+                           "name": self.name,
+                           "result": self.result,
+                           "message": self.message,
+                           "payload": self.payload})
+
+    @staticmethod
+    def from_dict(d):
+        return ClientGotMessage(d.get("name"),
+                                d.get("result"),
+                                d.get("message"),
+                                d.get("payload"))
 
 
 class ServerCreateMessage:
@@ -346,45 +553,6 @@ class ServerAcceptedMessage:
                                      d.get("session_name"))
 
 
-class ClientIsConnectedRequest:
-    def __init__(self, name: str):
-        self.type = "client_is_connected_request"
-        self.name = name
-        return
-
-    def to_json(self):
-        return json.dumps({"type": self.type,
-                           "name": self.name})
-
-    @staticmethod
-    def from_dict(d):
-        return ClientIsConnectedRequest(d.get("name"))
-
-
-class ClientIsConnectedResponse:
-    def __init__(self, name: str, result: bool, message: str, connected: bool):
-        self.type = "client_is_connected_response"
-        self.name = name
-        self.result = result
-        self.message = message
-        self.connected = connected
-        return
-
-    def to_json(self):
-        return json.dumps({"type": self.type,
-                           "name": self.name,
-                           "result": self.result,
-                           "message": self.message,
-                           "connected": self.connected})
-
-    @staticmethod
-    def from_dict(d):
-        return ClientIsConnectedResponse(d.get("name"),
-                                         d.get("result"),
-                                         d.get("message"),
-                                         d.get("connected"))
-
-
 class ServerIsConnectedRequest:
     def __init__(self, name: str):
         self.type = "server_is_connected_request"
@@ -460,42 +628,6 @@ class ServerDisconnectedMessage:
                                          d.get("message"))
 
 
-class ClientDestroyMessage:
-    def __init__(self, name: str):
-        self.type = "client_destroy"
-        self.name = name
-        return
-
-    def to_json(self):
-        return json.dumps({"type": self.type,
-                           "name": self.name})
-
-    @staticmethod
-    def from_dict(d):
-        return ClientDestroyMessage(d.get("name"))
-
-
-class ClientDestroyedMessage:
-    def __init__(self, name: str, result: bool, message: str):
-        self.type = "client_destroyed"
-        self.name = name
-        self.result = result
-        self.message = message
-        return
-
-    def to_json(self):
-        return json.dumps({"type": self.type,
-                           "name": self.name,
-                           "result": self.result,
-                           "message": self.message})
-
-    @staticmethod
-    def from_dict(d):
-        return ClientDestroyedMessage(d.get("name"),
-                                      d.get("result"),
-                                      d.get("message"))
-
-
 class ServerDestroyMessage:
     def __init__(self, name: str):
         self.type = "server_destroy"
@@ -532,30 +664,29 @@ class ServerDestroyedMessage:
                                       d.get("message"))
 
 
-class ServerSendMessage:
+class SessionSendMessage:
     """Request message be sent from server to client."""
-    def __init__(self, name: str, payload: bytes):
-        self.type = "server_send"
+    def __init__(self, name: str, payload: str):
+        self.type = "session_send"
         self.name = name
         self.payload = payload
         return
 
     def to_json(self):
-        #FIXME: going to have issues here with 3.5 and non-unicode payloads
         return json.dumps({"type": self.type,
                            "name": self.name,
                            "payload": self.payload})
 
     @staticmethod
     def from_dict(d):
-        return ServerSendMessage(d.get("name"),
-                                 d.get("payload"))
+        return SessionSendMessage(d.get("name"),
+                                  d.get("payload"))
 
 
-class ServerSentMessage:
+class SessionSentMessage:
     """Acknowledge message was sent from server to client."""
     def __init__(self, name: str, result: bool, message: str):
-        self.type = "server_sent"
+        self.type = "session_sent"
         self.name = name
         self.result = result
         self.message = message
@@ -569,16 +700,16 @@ class ServerSentMessage:
 
     @staticmethod
     def from_dict(d):
-        return ServerSentMessage(d.get("name"),
-                                 d.get("result"),
-                                 d.get("message"))
+        return SessionSentMessage(d.get("name"),
+                                  d.get("result"),
+                                  d.get("message"))
 
 
-class ServerReceiveCountRequest:
+class SessionReceiveCountRequest:
     """Request count of server's received messages."""
 
     def __init__(self, name: str):
-        self.type = "server_receive_count_request"
+        self.type = "session_receive_count_request"
         self.name = name
         return
 
@@ -588,14 +719,14 @@ class ServerReceiveCountRequest:
 
     @staticmethod
     def from_dict(d):
-        return ServerReceiveCountRequest(d.get("name"))
+        return SessionReceiveCountRequest(d.get("name"))
 
 
-class ServerReceiveCountResponse:
+class SessionReceiveCountResponse:
     """Return count of server's received messages."""
 
     def __init__(self, name: str, result: bool, message: str, count: int):
-        self.type = "server_receive_count_response"
+        self.type = "session_receive_count_response"
         self.name = name
         self.result = result
         self.message = message
@@ -611,17 +742,17 @@ class ServerReceiveCountResponse:
 
     @staticmethod
     def from_dict(d):
-        return ServerReceiveCountResponse(d.get("name"),
-                                          d.get("result"),
-                                          d.get("message"),
-                                          g.get("count"))
+        return SessionReceiveCountResponse(d.get("name"),
+                                           d.get("result"),
+                                           d.get("message"),
+                                           d.get("count"))
 
 
-class ServerReceiveMessage:
+class SessionGetMessage:
     """Request message received by server."""
 
     def __init__(self, name: str):
-        self.type = "server_receive"
+        self.type = "session_get"
         self.name = name
         return
 
@@ -631,14 +762,14 @@ class ServerReceiveMessage:
 
     @staticmethod
     def from_dict(d):
-        return ServerReceiveMessage(d.get("name"))
+        return SessionGetMessage(d.get("name"))
 
 
-class ServerReceivedMessage:
-    """Deliver message received by server to controler."""
+class SessionGotMessage:
+    """Deliver message received by server to controller."""
 
     def __init__(self, name: str, result: bool, message: str, payload: bytes):
-        self.type = "server_received"
+        self.type = "session_got"
         self.name = name
         self.result = result
         self.message = message
@@ -646,7 +777,6 @@ class ServerReceivedMessage:
         return
 
     def to_json(self):
-        #FIXME: going to have issues here with 3.5 and non-unicode payloads
         return json.dumps({"type": self.type,
                            "name": self.name,
                            "result": self.result,
@@ -655,8 +785,7 @@ class ServerReceivedMessage:
 
     @staticmethod
     def from_dict(d):
-        return ServerReceivedMessage(d.get("name"),
-                                     d.get("result"),
-                                     d.get("message"),
-                                     d.get("payload"))
-
+        return SessionGotMessage(d.get("name"),
+                                 d.get("result"),
+                                 d.get("message"),
+                                 d.get("payload"))

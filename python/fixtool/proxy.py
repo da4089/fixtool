@@ -25,11 +25,11 @@
 
 """Python API to fixtool simulator agent."""
 
+import base64
 import json
+import logging
 import socket
 import struct
-
-import simplefix
 
 from fixtool.message import *
 
@@ -106,32 +106,47 @@ class Client(object):
 
         return response.connected
 
-    def send(self, message: simplefix.FixMessage):
+    def send(self, message: bytes):
         """Send a FIX message to the connected server peer.
 
-        :param message: FIX message to send."""
+        :param message: Byte array containing formatted FIX message to send."""
         assert not self._destroyed
 
-        # FIXME: needs messages defined and implementation.
-        assert message
+        payload: str = base64.b64encode(message).decode("ascii")
+        request = ClientSendMessage(self._name, payload)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
         return
 
-    def receive_queue_length(self):
+    def receive_queue_length(self) -> int:
         """Return number of messages waiting to be collected from the client."""
         assert not self._destroyed
 
-        # FIXME: needs messages defined and implementation.
-        self._proxy.send_request({"message": "client_get_queue_length"})
-        return 0
+        request = ClientReceiveCountRequest(self._name)
+        self._proxy.send_request(request)
 
-    def receive(self):
-        """Return a message received from the connected server.
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+        return response.count
+
+    def receive(self) -> bytes:
+        """Return a FIX message received from the connected server.
 
         If no messages are queued, returns None."""
 
-        # FIXME: define messages and implementation.
-        assert not self._destroyed
-        return None
+        request = ClientGetMessage(self._name)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        message = base64.b64decode(response.payload)
+        return message
 
 
 class Server(object):
@@ -283,15 +298,16 @@ class ServerSession(object):
         self._connected = False
         return
 
-    def send(self, message: simplefix.FixMessage):
+    def send(self, message: bytes):
         """Send a message to the connected FIX client.
 
-        :param message: FIX message to send."""
+        :param message: Byte array of formatted FIX message to send."""
 
         assert message
         assert self._connected
 
-        request = ServerSendMessage(self._name)
+        payload: str = base64.b64encode(message).decode("ascii")
+        request = SessionSendMessage(self._name, payload)
         self._proxy.send_request(request)
 
         response = self._proxy.await_response()
@@ -302,19 +318,31 @@ class ServerSession(object):
     def receive_queue_length(self):
         """Return the number of messages queued from the connected client."""
 
-        # FIXME: define messages and implementation.
         assert self._connected
 
-        return 0
+        request = SessionReceiveCountRequest(self._name)
+        self._proxy.send_request(request)
 
-    def receive(self):
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+        return response.count
+
+    def receive(self) -> bytes:
         """Return a message received from the connected client.
 
         If no messages are queued, returns None."""
-
-        # FIXME: define messages and implementation.
         assert self._connected
-        return None
+
+        request = SessionGetMessage(self._name)
+        self._proxy.send_request(request)
+
+        response = self._proxy.await_response()
+        if not response.result:
+            raise RuntimeError(response.message)
+
+        message = base64.b64decode(response.payload)
+        return message
 
 
 class FixToolProxy(object):
@@ -407,6 +435,15 @@ class FixToolProxy(object):
             elif message_type == "client_is_connected_response":
                 message = ClientIsConnectedResponse.from_dict(d)
 
+            elif message_type == "client_sent":
+                message = ClientSentMessage.from_dict(d)
+
+            elif message_type == "client_receive_count_response":
+                message = ClientReceiveCountResponse.from_dict(d)
+
+            elif message_type == "client_got":
+                message = ClientGotMessage.from_dict(d)
+
             elif message_type == "server_created":
                 message = ServerCreatedMessage.from_dict(d)
 
@@ -430,6 +467,18 @@ class FixToolProxy(object):
 
             elif message_type == "server_disconnected":
                 message = ServerDisconnectedMessage.from_dict(d)
+
+            elif message_type == "session_receive_count_response":
+                message = SessionReceiveCountResponse.from_dict(d)
+
+            elif message_type == "session_sent":
+                message = SessionSentMessage.from_dict(d)
+
+            elif message_type == "session_got":
+                message = SessionGotMessage.from_dict(d)
+
+            else:
+                logging.critical("Unknown message type: %s" % message_type)
 
             return message
 

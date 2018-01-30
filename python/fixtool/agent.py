@@ -62,6 +62,7 @@
 
 import argparse
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -98,7 +99,7 @@ class Client:
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self._parser = simplefix.FixParser()
-        self._recv_queue = []
+        self._queue = []
         return
 
     def destroy(self):
@@ -133,7 +134,11 @@ class Client:
         return
 
     def readable(self):
-        """Handle received data on the client's server connection."""
+        """Handle received data on the client's server connection.
+
+        This method actually parses the message content, so it must
+        be well-formed FIX, so that it can detect the end of the
+        message.  This is perhaps not ideal, but ..."""
         buf = self._socket.recv(65536)
         if not buf:
             self.disconnect()
@@ -142,8 +147,29 @@ class Client:
         self._parser.append_buffer(buf)
         message = self._parser.get_message()
         while message is not None:
-            self._recv_queue.append(message)
+            self._queue.append(message.encode())
             message = self._parser.get_message()
+        return
+
+    def receive_queue_length(self) -> int:
+        """Return the number of messages on the received message queue."""
+        return len(self._queue)
+
+    def get_message(self) -> bytes:
+        """Return the first message from the received message queue."""
+        if self.receive_queue_length() < 1:
+            return None
+        return self._queue.pop(0)
+
+    def send_message(self, message: bytes):
+        """Send a message to the connected server session.
+
+        :param message: Byte array of formatted FIX message to send.
+
+        The message has been received via the control protocol, where
+        it was wrapped/unwrapped in BASE64, and we assume it is good.
+        We send it as-is."""
+        self._socket.sendall(message)
         return
 
 
@@ -267,11 +293,11 @@ class ServerSession:
         self._parser.append_buffer(buf)
         msg = self._parser.get_message()
         while msg is not None:
-            self._queue.append(msg)
+            self._queue.append(msg.encode())
             msg = self._parser.get_message()
         return
 
-    def is_connected(self):
+    def is_connected(self) -> bool:
         """Return True if session is connected."""
         return self._is_connected
 
@@ -283,7 +309,7 @@ class ServerSession:
         self._is_connected = False
         return
 
-    def receive_queue_length(self):
+    def receive_queue_length(self) -> int:
         """Return the number of messages on the received message queue."""
         return len(self._queue)
 
@@ -293,12 +319,11 @@ class ServerSession:
             return None
         return self._queue.pop(0)
 
-    def send_message(self, message: simplefix.FixMessage):
+    def send_message(self, message: bytes):
         """Send a message to the connected client.
 
-        :param message: Send a message to the connected client."""
-        buffer = message.encode()
-        self._socket.sendall(buffer)
+        :param message: Byte array of formatted FIX message to send."""
+        self._socket.sendall(message)
         return
 
 
@@ -373,6 +398,8 @@ class FixToolAgent(object):
         self._loop.add_reader(self._socket, self.accept)
         self._loop.add_signal_handler(signal.SIGINT, self.handle_sigint)
 
+        self._parser = simplefix.FixParser()
+
         name = self._socket.getsockname()
         self._port = name[1]
         return
@@ -422,7 +449,7 @@ class FixToolAgent(object):
         self._loop = None
         return
 
-    def handle_sigint(self, signum, frame):
+    def handle_sigint(self, *args):
         """Handle SIGINT."""
         # pylint: disable=unused-argument
         logging.info("Exiting on C-c.")
@@ -467,14 +494,23 @@ class FixToolAgent(object):
         if message_type == "client_create":
             self.handle_client_create(client, message)
 
+        elif message_type == "client_destroy":
+            self.handle_client_destroy(client, message)
+
         elif message_type == "client_connect":
             self.handle_client_connect(client, message)
 
         elif message_type == "client_is_connected_request":
             self.handle_client_is_connected_request(client, message)
 
-        elif message_type == "client_destroy":
-            self.handle_client_destroy(client, message)
+        elif message_type == "client_send":
+            self.handle_client_send(client, message)
+
+        elif message_type == "client_receive_count_request":
+            self.handle_client_receive_count_request(client, message)
+
+        elif message_type == "client_get":
+            self.handle_client_get(client, message)
 
         elif message_type == "server_create":
             self.handle_server_create(client, message)
@@ -500,21 +536,20 @@ class FixToolAgent(object):
         elif message_type == "server_disconnect":
             self.handle_server_disconnect(client, message)
 
-        elif message_type == "server_queue_length":
-            #FIXME
-            pass
+        elif message_type == "session_send":
+            self.handle_session_send(client, message)
 
-        elif message_type == "server_get_message":
-            #FIXME
-            pass
+        elif message_type == "session_receive_count_request":
+            self.handle_session_receive_count_request(client, message)
 
-        elif message_type == "server_send_message":
-            #FIXME
-            pass
+        elif message_type == "session_get":
+            self.handle_session_get(client, message)
 
         elif message_type == "shutdown":
             self.handle_shutdown(client, message)
 
+        else:
+            logging.critical("Unknown message type: %s" % message_type)
         return
 
     def handle_shutdown(self, control: ControlSession, message: dict):
@@ -606,6 +641,64 @@ class FixToolAgent(object):
         control.send(response.to_json().encode())
         return
 
+    def handle_client_send(self, control: ControlSession, message: dict):
+        """Handle a 'client_send' request.
+
+        :param control: Control session.
+        :param message: Control message."""
+        name = message.get("name")
+        client: Client = self._clients.get(name)
+        if client is None:
+            response = ClientSentMessage(name, False,
+                                         "No such client: %s" % name)
+            control.send(response.to_json().encode())
+            return
+
+        payload = message.get("payload")
+        buffer = base64.b64decode(payload)
+        client.send_message(buffer)
+
+        response = ClientSentMessage(name, True, '')
+        control.send(response.to_json().encode())
+        return
+
+    def handle_client_receive_count_request(self,
+                                            control: ControlSession,
+                                            message: dict):
+        name = message.get("name")
+        client: Client = self._clients.get(name)
+        if client is None:
+            response = ClientReceiveCountResponse(name, False,
+                                                  "No such client: %s" % name,
+                                                  0)
+            control.send(response.to_json().encode())
+            return
+
+        count = message.get("count")
+        response = ClientReceiveCountResponse(name, True, '', count)
+        control.send(response.to_json().encode())
+        return
+
+    def handle_client_get(self, control: ControlSession, message: dict):
+        """Process a 'client_get' message.
+
+        :param control: Control session.
+        :param message: Control message."""
+        name = message.get("name")
+        client: Client = self._clients.get(name)
+        if client is None:
+            response = ClientGotMessage(name, False,
+                                        "No such client: %s" % name,
+                                        None)
+            control.send(response.to_json().encode())
+            return
+
+        fix_message: simplefix.FixMessage = client.get_message()
+        buffer = fix_message.encode()
+        response = ClientGotMessage(name, True, '', buffer)
+        control.send(response.to_json().encode())
+        return
+
     def handle_server_create(self, client: ControlSession, message: dict):
         """Process a server_create message.
 
@@ -657,6 +750,8 @@ class FixToolAgent(object):
         name = message["name"]
         server = self._servers.get(name)
         if server is None:
+            logging.warning("server_listen(%s, %d): no such server." %
+                            (name, ))
             response = ServerListenedMessage(name, False,
                                              "No such server '%s'" % name)
             client.send(response.to_json().encode())
@@ -771,6 +866,70 @@ class FixToolAgent(object):
         server_session.disconnect()
 
         response = ServerDisconnectedMessage(name, True, '')
+        control.send(response.to_json().encode())
+        return
+
+    def handle_session_send(self, control: ControlSession, message: dict):
+        """Handle 'session_send' request.
+
+        :param control: Control session.
+        :param message: Control message."""
+        name = message.get("name")
+        server_session: ServerSession = self._server_sessions.get(name)
+        if server_session is None:
+            response = SessionSentMessage(name, False,
+                                          "No such session %s" % name)
+            control.send(response.to_json().encode())
+            return
+
+        buffer = base64.b64decode(message.get("payload"))
+        server_session.send_message(buffer)
+
+        response = SessionSentMessage(name, True, '')
+        control.send(response.to_json().encode())
+        return
+
+    def handle_session_receive_count_request(self,
+                                             control: ControlSession,
+                                             message: dict):
+        """Handle 'session_receive_count_request' message.
+
+        :param control: Control session.
+        :param message: Control message."""
+        name = message.get("name")
+        server_session: ServerSession = self._server_sessions.get(name)
+        if server_session is None:
+            logging.warn("session_receive_count_request(%s): "
+                         "error: unknown session" % name)
+            response = SessionReceiveCountResponse(name, False,
+                                                   "No such session %s" % name)
+            control.send(response.to_json().encode())
+            return
+
+        count = server_session.receive_queue_length()
+        logging.debug("session_receive_count_request(%s): "
+                      "%d" % (name, count))
+        response = SessionReceiveCountResponse(name, True, '', count)
+        control.send(response.to_json().encode())
+        return
+
+    def handle_session_get(self, control: ControlSession, message: dict):
+        """Handle 'session_get' request.
+
+        :param control: Control session.
+        :param message: Control message."""
+        name = message.get("name")
+        server_session: ServerSession = self._server_sessions.get(name)
+        if server_session is None:
+            response = SessionGotMessage(name, False,
+                                         "No such session %s" % name,
+                                         b'')
+            control.send(response.to_json().encode())
+            return
+
+        fix_message = server_session.get_message()
+        payload = base64.b64encode(fix_message).decode("ascii")
+        response = SessionGotMessage(name, True, '', payload)
         control.send(response.to_json().encode())
         return
 

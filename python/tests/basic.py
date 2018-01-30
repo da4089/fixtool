@@ -57,8 +57,8 @@ class BasicTests(unittest.TestCase):
         self.assertTrue(c1.is_connected())
         self.assertTrue(cs1.is_connected())
 
-        #c1.send("hello")
-        #self.assertEqual(1, cs1.receive_queue_length())
+        c1.send("hello")
+        self.assertEqual(1, cs1.receive_queue_length())
 
         #m1 = cs1.receive()
         #self.assertEqual("hello", m1)
