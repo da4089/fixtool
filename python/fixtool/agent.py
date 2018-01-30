@@ -25,41 +25,6 @@
 
 """Background agent that manages the fixtool sessions."""
 
-# The client to agent protocol uses TCP, with a simple 32-bit big-endian
-# length frame, and then JSON to encode messages.
-#
-# Any number of fixtool clients can connect to the agent simultaneously.
-# This is no significant security implemented.
-#
-# Initially, at least, the agent will be invisible.  It might make sense
-# to add a web UI later, as an alternative controller (via WebSockets).
-#
-# Requests:
-# - login
-# - ping
-# - logout
-# - restart
-# - shutdown
-# - status
-
-# - client_create / client_created
-# - client_connect / client_connected
-# - client_disconnect / client_disconnected
-# - client send / client_sent
-# - client_get_pending_receive / client_pending_receive
-# - client_receive / client_received
-
-# - server_create / server_created
-# - server_listen / server_listening
-# - server_listen_stop / server_listen_stopped
-# - server_get_pending_accept / server_pending_accept
-# - server_accept / server_accepted
-# - server_send / server_sent
-# - server_get_pending_receive / server_pending_receive
-# - server_receive / server_received
-# - server_disconnect / server_disconnected
-
-
 import argparse
 import asyncio
 import base64
