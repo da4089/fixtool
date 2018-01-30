@@ -24,6 +24,7 @@
 ##################################################################
 
 import fixtool
+import simplefix
 import unittest
 
 
@@ -57,7 +58,14 @@ class BasicTests(unittest.TestCase):
         self.assertTrue(c1.is_connected())
         self.assertTrue(cs1.is_connected())
 
-        c1.send("hello")
+        fix_msg = simplefix.FixMessage()
+        fix_msg.append_pair(8, "FIX.4.2")
+        fix_msg.append_pair(35, 0)
+        fix_msg.append_pair(34, 1)
+        fix_msg.append_utc_timestamp(52)
+        send_buf = fix_msg.encode()
+
+        c1.send(send_buf)
         self.assertEqual(1, cs1.receive_queue_length())
 
         #m1 = cs1.receive()
