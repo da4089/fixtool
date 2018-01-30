@@ -92,3 +92,13 @@ def spawn_agent():
 
     agent_proxy = FixToolProxy("localhost", port)
     return agent_proxy
+
+
+def connect_agent(host: str, port: int):
+    """Create a proxy, and connect it to an existing agent.
+
+    :param host: String host name or IP address for the agent.
+    :param port: Integer TCP port number for the agent."""
+
+    agent_proxy = FixToolProxy(host, port)
+    return agent_proxy
