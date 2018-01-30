@@ -112,7 +112,7 @@ class Client(object):
         :param message: Byte array containing formatted FIX message to send."""
         assert not self._destroyed
 
-        payload: str = base64.b64encode(message).decode("ascii")
+        payload = base64.b64encode(message).decode("ascii")
         request = ClientSendMessage(self._name, payload)
         self._proxy.send_request(request)
 
@@ -306,7 +306,7 @@ class ServerSession(object):
         assert message
         assert self._connected
 
-        payload: str = base64.b64encode(message).decode("ascii")
+        payload = base64.b64encode(message).decode("ascii")
         request = SessionSendMessage(self._name, payload)
         self._proxy.send_request(request)
 

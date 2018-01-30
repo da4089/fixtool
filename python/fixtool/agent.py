@@ -612,7 +612,7 @@ class FixToolAgent(object):
         :param control: Control session.
         :param message: Control message."""
         name = message.get("name")
-        client: Client = self._clients.get(name)
+        client = self._clients.get(name)
         if client is None:
             response = ClientSentMessage(name, False,
                                          "No such client: %s" % name)
@@ -635,7 +635,7 @@ class FixToolAgent(object):
         :param control: Control session.
         :param message: Control message."""
         name = message.get("name")
-        client: Client = self._clients.get(name)
+        client = self._clients.get(name)
         if client is None:
             logging.warning("No sucj client: %s" % name)
             response = ClientReceiveCountResponse(name, False,
@@ -657,7 +657,7 @@ class FixToolAgent(object):
         :param control: Control session.
         :param message: Control message."""
         name = message.get("name")
-        client: Client = self._clients.get(name)
+        client = self._clients.get(name)
         if client is None:
             response = ClientGotMessage(name, False,
                                         "No such client: %s" % name,
@@ -847,7 +847,7 @@ class FixToolAgent(object):
         :param control: Control session.
         :param message: Control message."""
         name = message.get("name")
-        server_session: ServerSession = self._server_sessions.get(name)
+        server_session = self._server_sessions.get(name)
         if server_session is None:
             response = SessionSentMessage(name, False,
                                           "No such session %s" % name)
@@ -869,7 +869,7 @@ class FixToolAgent(object):
         :param control: Control session.
         :param message: Control message."""
         name = message.get("name")
-        server_session: ServerSession = self._server_sessions.get(name)
+        server_session = self._server_sessions.get(name)
         if server_session is None:
             logging.warn("session_receive_count_request(%s): "
                          "error: unknown session" % name)
@@ -891,7 +891,7 @@ class FixToolAgent(object):
         :param control: Control session.
         :param message: Control message."""
         name = message.get("name")
-        server_session: ServerSession = self._server_sessions.get(name)
+        server_session = self._server_sessions.get(name)
         if server_session is None:
             response = SessionGotMessage(name, False,
                                          "No such session %s" % name,
