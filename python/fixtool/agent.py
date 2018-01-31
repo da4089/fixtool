@@ -398,12 +398,12 @@ class FixToolAgent(object):
         """Clean up all simulated entities."""
 
         # Server listening sockets.
-        for server in self._servers:
+        for server in self._servers.values():
             server.destroy()
         self._servers = {}
 
         # Client sessions.
-        for client in self._clients:
+        for client in self._clients.values():
             client.destroy()
         self._clients = {}
 
