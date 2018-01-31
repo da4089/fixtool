@@ -24,12 +24,13 @@
 ########################################################################
 
 from setuptools import setup
+from fixtool import VERSION
 
 with open("README.rst") as readme:
     long_description = readme.read()
 
 setup(name="fixtool",
-      version="0.0.1",
+      version=VERSION,
       description="FIX Protocol testing tool",
       long_description=long_description,
       url="https://github.com/da4089/fixtool",
