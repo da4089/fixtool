@@ -376,6 +376,15 @@ class FixToolProxy(object):
         self._servers = {}
         return
 
+    def reset(self):
+        """Reset the associated agent."""
+        message = ResetMessage()
+        self.send_request(message)
+
+        self._clients = {}
+        self._servers = {}
+        return
+
     def create_client(self, name: str):
         """Create a FIX client.
 

@@ -41,6 +41,7 @@ import simplefix
 # pylint: disable=unused-wildcard-import
 from fixtool.message import *
 from fixtool.proxy import FixToolProxy
+from fixtool.version import VERSION
 
 
 class Client:
@@ -318,6 +319,9 @@ class ControlSession:
             return None
         self._buffer = self._buffer[4:]
 
+        # FIXME: deal with the case where there's multiple control
+        # FIXME: messages in the buffer.
+
         payload = self._buffer[:payload_length]
         self._buffer = self._buffer[payload_length:]
         return payload
@@ -363,8 +367,6 @@ class FixToolAgent(object):
         self._loop.add_reader(self._socket, self.accept)
         self._loop.add_signal_handler(signal.SIGINT, self.handle_sigint)
 
-        self._parser = simplefix.FixParser()
-
         name = self._socket.getsockname()
         self._port = name[1]
         return
@@ -383,8 +385,8 @@ class FixToolAgent(object):
         self._loop.stop()
         return
 
-    def shutdown(self):
-        """Clean up for exit."""
+    def reset(self):
+        """Clean up all simulated entities."""
 
         # Server listening sockets.
         for server in self._servers:
@@ -395,6 +397,15 @@ class FixToolAgent(object):
         for client in self._clients:
             client.destroy()
         self._clients = {}
+
+        # Server sessions are cleaned up by server.destroy()
+        self._server_sessions = {}
+        return
+
+    def shutdown(self):
+        """Clean up for exit."""
+
+        self.reset()
 
         # Control sessions.
         for sock, session in self._control_sessions.items():
@@ -513,6 +524,9 @@ class FixToolAgent(object):
         elif message_type == "shutdown":
             self.handle_shutdown(client, message)
 
+        elif message_type == "reset":
+            self.handle_reset(client, message)
+
         else:
             logging.critical("Unknown message type: %s" % message_type)
         return
@@ -525,7 +539,16 @@ class FixToolAgent(object):
         # pylint: disable=unused-argument
         logging.info("agent shutdown() requested")
         self.stop()
-        return None
+        return
+
+    def handle_reset(self, control: ControlSession, message: dict):
+        """Handle a 'reset' request message.
+
+        :param control: Control session.
+        :param message: Control message."""
+        logging.info("reset() requested.")
+        self.reset()
+        return
 
     def handle_client_create(self, control: ControlSession, message: dict):
         """Handler a 'client_create' request message.
@@ -912,7 +935,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--version",
                         action="version",
-                        version="1.0.0")  # FIXME
+                        version=VERSION)
     parser.add_argument("-l", "--loglevel",
                         default="WARNING",
                         help="One of DEBUG, INFO, WARNING, ERROR, CRIT")
@@ -923,7 +946,7 @@ def main():
                         default=0,
                         help="TCP port number for control sessions")
     parser.add_argument("action", type=str,
-                        choices=("start", "stop", "reset", "show"),
+                        choices=("start", "stop", "reset"),
                         help="Action to perform")
     args = parser.parse_args()
 
@@ -933,22 +956,7 @@ def main():
     logging.log(logging.INFO, "Starting")
 
     # Dispatch.
-    if args.action == "stop":
-        if not args.port:
-            print("ERROR need port number for 'stop' action.")
-            sys.exit(1)
-
-        try:
-            proxy = FixToolProxy('localhost', args.port)
-            proxy.shutdown()
-            sys.exit(0)
-
-        except ConnectionRefusedError:
-            print("ERROR no agent running on port " + str(args.port))
-
-        sys.exit(1)
-
-    elif args.action == "start":
+    if args.action == "start":
         if not args.foreground:
             pid = os.fork()
             if pid != 0:
@@ -968,13 +976,34 @@ def main():
         finally:
             agent.shutdown()
 
-    elif args.action == "reset":
-        print("ERROR 'reset' action not yet implemented")
+    elif args.action == "stop":
+        if not args.port:
+            print("ERROR need port number for 'stop' action.")
+            sys.exit(1)
+
+        try:
+            proxy = FixToolProxy('localhost', args.port)
+            proxy.shutdown()
+            sys.exit(0)
+
+        except ConnectionRefusedError:
+            print("ERROR no agent running on port " + str(args.port))
+
         sys.exit(1)
 
-    elif args.action == "show":
-        # Report status and connectivity info for the active instance.
-        print("ERROR 'show' action not yet implemented.")
+    elif args.action == "reset":
+        if not args.port:
+            print("ERROR need port number for 'reset' action.")
+            sys.exit(1)
+
+        try:
+            proxy = FixToolProxy('localhost', args.port)
+            proxy.reset()
+            sys.exit(0)
+
+        except ConnectionRefusedError:
+            print("ERROR no agent running on port " + str(args.port))
+
         sys.exit(1)
 
     return

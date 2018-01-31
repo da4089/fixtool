@@ -26,6 +26,7 @@
 import json
 
 __all__ = ["ShutdownMessage",
+           "ResetMessage",
            "ClientCreateMessage",
            "ClientCreatedMessage",
            "ClientDestroyMessage",
@@ -65,17 +66,45 @@ __all__ = ["ShutdownMessage",
 
 
 class ShutdownMessage:
+    """Request agent shutdown."""
+
     def __init__(self):
+        """Constructor."""
         self.type = "shutdown"
         return
 
     def to_json(self):
+        """Encode as JSON."""
         return json.dumps({"type": self.type})
 
     @staticmethod
     def from_dict(d):
+        """Create from dictionary.
+
+        :param d: Dictionary from which to create message."""
         assert d.get("type") == "shutdown"
         return ShutdownMessage()
+
+
+class ResetMessage:
+    """Request agent reset."""
+
+    def __init__(self):
+        """Constructor."""
+        self.type = "reset"
+        return
+
+    def to_json(self):
+        """Encode as JSON."""
+        return json.dumps({"type": self.type})
+
+    @staticmethod
+    def from_dict(d):
+        """Create from dictionary.
+
+        :param d: Dictionary from which to create message."""
+        assert d.get("type") == "reset"
+        return ResetMessage()
 
 
 class ClientCreateMessage:
@@ -90,6 +119,9 @@ class ClientCreateMessage:
 
     @staticmethod
     def from_dict(d):
+        """Create from dictionary.
+
+        :param d: Dictionary from which to create message."""
         return ClientCreateMessage(d.get("name"))
 
 
