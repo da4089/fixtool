@@ -43,6 +43,15 @@ from fixtool.message import *
 from fixtool.proxy import FixToolProxy
 from fixtool.version import VERSION
 
+# Log level names, from argv.
+LOGLEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL
+}
+
 
 class Client:
     """Simulated FIX client."""
@@ -121,7 +130,7 @@ class Client:
         """Return the number of messages on the received message queue."""
         return len(self._queue)
 
-    def get_message(self) -> bytes:
+    def get_message(self):
         """Return the first message from the received message queue."""
         if self.receive_queue_length() < 1:
             return None
@@ -737,7 +746,7 @@ class FixToolAgent(object):
         control.send(response.to_json().encode())
         return
 
-    def handle_server_listen(self, client: ControlSession, message: dict):
+    def handle_server_listen(self, control: ControlSession, message: dict):
         """Handle a 'server_listen' message.
 
         :param control: Control session.
@@ -745,27 +754,28 @@ class FixToolAgent(object):
         name = message["name"]
         server = self._servers.get(name)
         if server is None:
-            logging.warning("server_listen(%s, %d): no such server." %
-                            (name, ))
+            logging.warning("server_listen(%s): no such server." % name)
             response = ServerListenedMessage(name, False,
                                              "No such server '%s'" % name)
-            client.send(response.to_json().encode())
+            control.send(response.to_json().encode())
             return
 
         port = message.get("port")
         if port is None or port < 0 or port > 65535:
+            logging.warning("server_listen(%s, %s): bad port."
+                            % (name, str(port)))
             response = ServerListenedMessage(name, False,
                                              "Bad or missing port")
-            client.send(response.to_json().encode())
+            control.send(response.to_json().encode())
             return
 
         server.listen(port)
 
         response = ServerListenedMessage(name, True, '')
-        client.send(response.to_json().encode())
+        control.send(response.to_json().encode())
         return
 
-    def handle_server_unlisten(self, client: ControlSession, message: dict):
+    def handle_server_unlisten(self, control: ControlSession, message: dict):
         """Handle a 'server_unlisten' request.
 
         :param control: Control session.
@@ -775,13 +785,13 @@ class FixToolAgent(object):
         if server is None:
             response = ServerUnlistenedMessage(name, False,
                                                "No such server '%s'" % name)
-            client.send(response.to_json().encode())
+            control.send(response.to_json().encode())
             return
 
         server.unlisten()
 
         response = ServerUnlistenedMessage(name, True, '')
-        client.send(response.to_json().encode())
+        control.send(response.to_json().encode())
         return
 
     def handle_server_pending_accept_request(self,
@@ -894,10 +904,11 @@ class FixToolAgent(object):
         name = message.get("name")
         server_session = self._server_sessions.get(name)
         if server_session is None:
-            logging.warn("session_receive_count_request(%s): "
-                         "error: unknown session" % name)
+            logging.warning("session_receive_count_request(%s): "
+                            "error: unknown session" % name)
             response = SessionReceiveCountResponse(name, False,
-                                                   "No such session %s" % name)
+                                                   "No such session: "
+                                                   "%s" % name, 0)
             control.send(response.to_json().encode())
             return
 
@@ -938,7 +949,8 @@ def main():
                         version=VERSION)
     parser.add_argument("-l", "--loglevel",
                         default="WARNING",
-                        help="One of DEBUG, INFO, WARNING, ERROR, CRIT")
+                        choices=LOGLEVELS.keys(),
+                        help="Suppress messages with priority below this")
     parser.add_argument("-f", "--foreground",
                         action="store_true",
                         help="Don't daemonise; run in the foreground")
@@ -951,7 +963,7 @@ def main():
     args = parser.parse_args()
 
     # Logging.
-    level = logging._nameToLevel.get(args.loglevel, logging.DEBUG)
+    level = LOGLEVELS.get(args.loglevel.lower(), logging.DEBUG)
     logging.basicConfig(level=level)
     logging.log(logging.INFO, "Starting")
 
