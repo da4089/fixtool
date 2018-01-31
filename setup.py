@@ -23,8 +23,19 @@
 #
 ########################################################################
 
+import inspect
+import os
+import sys
+
 from setuptools import setup
+
+# Add fixtool to the PYTHONPATH so we can get the version.
+d = os.path.dirname(inspect.getfile(inspect.currentframe()))
+d = os.path.join(d, "python")
+sys.path.append(d)
+
 from fixtool import VERSION
+
 
 with open("README.rst") as readme:
     long_description = readme.read()
