@@ -29,6 +29,7 @@ import logging
 import os
 import stat
 from .proxy import FixToolProxy
+from .version import VERSION
 
 
 def spawn_agent():
