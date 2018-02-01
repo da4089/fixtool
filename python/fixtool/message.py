@@ -444,24 +444,27 @@ class ServerListenMessage:
 
 
 class ServerListenedMessage:
-    def __init__(self, name: str, result: bool, message: str):
+    def __init__(self, name: str, result: bool, message: str, port: int):
         self.type = "server_listened"
         self.name = name
         self.result = result
         self.message = message
+        self.port = port
         return
 
     def to_json(self):
         return json.dumps({"type": self.type,
                            "name": self.name,
                            "result": self.result,
-                           "message": self.message})
+                           "message": self.message,
+                           "port": self.port})
 
     @staticmethod
     def from_dict(d):
         return ServerListenedMessage(d.get("name"),
                                      d.get("result"),
-                                     d.get("message"))
+                                     d.get("message"),
+                                     d.get("port"))
 
 
 class ServerUnlistenMessage:

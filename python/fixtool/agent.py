@@ -189,9 +189,10 @@ class Server:
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._socket.bind(('', port))
         self._socket.listen(5)
+        actual_port = self._socket.getsockname()[1]
 
         asyncio.get_event_loop().add_reader(self._socket, self.acceptable)
-        return
+        return actual_port
 
     def unlisten(self):
         """Stop listening for client connections."""
@@ -769,9 +770,9 @@ class FixToolAgent(object):
             control.send(response.to_json().encode())
             return
 
-        server.listen(port)
+        actual_port = server.listen(port)
 
-        response = ServerListenedMessage(name, True, '')
+        response = ServerListenedMessage(name, True, '', actual_port)
         control.send(response.to_json().encode())
         return
 

@@ -193,10 +193,11 @@ class Server(object):
         self._destroyed = True
         return
 
-    def listen(self, port: int):
+    def listen(self, port: int = 0):
         """Listen for connections on specified port.
 
-        :param port: TCP port number on which to listen for connections."""
+        :param port: TCP port number on which to listen for connections.
+        :returns: Listening port number."""
         assert not self._destroyed
 
         msg = ServerListenMessage(self._name, port)
@@ -206,8 +207,9 @@ class Server(object):
         if not response.result:
             raise RuntimeError(response.message)
 
-        self._ports.append(port)
-        return
+        actual_port = response.port
+        self._ports.append(actual_port)
+        return actual_port
 
     def stop_listening(self, port: int):
         """Stop listening for connections on specified port.
