@@ -35,6 +35,8 @@ import signal
 import socket
 import struct
 import sys
+import tempfile
+import time
 
 import simplefix
 
@@ -964,8 +966,15 @@ def main():
     args = parser.parse_args()
 
     # Logging.
+    tmpdir = "/tmp" if sys.platform == "darwin" else tempfile.gettempdir()
+    now = time.strftime("%Y%m%d-%H%M%S")
+    logfile = os.path.join(tmpdir, "fixtool-" + now + ".log")
     level = LOGLEVELS.get(args.loglevel.lower(), logging.DEBUG)
-    logging.basicConfig(level=level)
+    logging.basicConfig(filename=logfile,
+                        level=level,
+                        format="%(asctime)s.%(msecs)03d %(name)s "
+                               "%(levelname)s  %(message)s",
+                        datefmt="%Y/%m/%d-%H:%M:%S")
     logging.log(logging.INFO, "Starting")
 
     # Dispatch.
@@ -1024,6 +1033,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+    logging.info("Exiting")
 
 
 ##################################################################
