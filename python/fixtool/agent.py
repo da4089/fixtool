@@ -394,12 +394,15 @@ class FixToolAgent(object):
 
     def stop(self):
         """Exit mainloop."""
-        self._loop.stop()
+        if self._loop.is_running():
+            self._loop.stop()
+            logging.debug("event loop stopped.")
         return
 
     def reset(self):
         """Clean up all simulated entities."""
 
+        logging.info("agent reseting ...")
         # Server listening sockets.
         for server in self._servers.values():
             server.destroy()
@@ -412,11 +415,15 @@ class FixToolAgent(object):
 
         # Server sessions are cleaned up by server.destroy()
         self._server_sessions = {}
+
+        logging.info("agent reset complete.")
         return
 
     def shutdown(self):
         """Clean up for exit."""
 
+        logging.info("agent shutting down ...")
+        self.stop()
         self.reset()
 
         # Control sessions.
@@ -435,6 +442,8 @@ class FixToolAgent(object):
         self._loop.remove_signal_handler(signal.SIGINT)
         self._loop.close()
         self._loop = None
+
+        logging.info("agent shutdown complete.")
         return
 
     def handle_sigint(self, *args):
@@ -558,7 +567,7 @@ class FixToolAgent(object):
 
         :param control: Control session.
         :param message: Control message."""
-        logging.info("reset() requested.")
+        logging.info("agent reset() requested.")
         self.reset()
         return
 
@@ -573,13 +582,13 @@ class FixToolAgent(object):
             response = ClientCreatedMessage(name, False,
                                             "Client %s already exists" % name)
             control.send(response.to_json().encode())
-            return None
+            return
 
         self._clients[name] = Client(name)
 
         response = ClientCreatedMessage(name, True, '')
         control.send(response.to_json().encode())
-        return None
+        return
 
     def handle_client_destroy(self, control: ControlSession, message: dict):
         """Handle a 'client_destroy' message.
@@ -998,6 +1007,9 @@ def main():
         finally:
             agent.shutdown()
 
+        logging.info("Exiting")
+        sys.exit(0)
+
     elif args.action == "stop":
         if not args.port:
             print("ERROR need port number for 'stop' action.")
@@ -1033,7 +1045,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-    logging.info("Exiting")
 
 
 ##################################################################
