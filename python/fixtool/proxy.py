@@ -353,7 +353,7 @@ class FixToolProxy(object):
     def __init__(self, host: str, port: int):
         """Constructor.
 
-        :param host: String host name or IP adddress for agent."""
+        :param host: String host name or IP address for agent."""
         self._host = host
         self._port = port
         self._clients = {}
