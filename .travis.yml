@@ -4,6 +4,8 @@ python:
  - "3.6"
 install:
  - pip install -r requirements.txt
+ - pip install -U coverage
+ - pip install -U coveralls
 script:
  - cd python/tests
  - env PYTHONPATH=.. python -m unittest --verbose all
