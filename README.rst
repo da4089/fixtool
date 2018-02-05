@@ -54,10 +54,10 @@ suggestions, and bugs.
 .. |Docs| image:: https://readthedocs.org/projects/fixtool/badge/?version=latest
     :target: http://fixtool.readthedocs.io/en/latest/
     :alt: Docs
-.. |Code Health| image:: https://api.codacy.com/project/badge/Grade/abd5c37cfe834d5ca5edb74853223986    :target: https://www.codacy.com/app/da4089/fixtool?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=da4089/fixtool&amp;utm_campaign=Badge_Grade
+.. |Code Health| image:: https://api.codacy.com/project/badge/Grade/abd5c37cfe834d5ca5edb74853223986
     :target: https://app.codacy.com/app/da4089/fixtool/dashboard
     :alt: Code Health
-.. |Coverage| image:: https://api.codacy.com/project/badge/Coverage/abd5c37cfe834d5ca5edb74853223986    :target: https://www.codacy.com/app/da4089/fixtool?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=da4089/fixtool&amp;utm_campaign=Badge_Coverage
+.. |Coverage| image:: https://api.codacy.com/project/badge/Coverage/abd5c37cfe834d5ca5edb74853223986
     :target: https://app.codacy.com/app/da4089/fixtool/dashboard
     :alt: Coverage
 .. |PyPI| image:: https://img.shields.io/pypi/v/fixtool.svg
