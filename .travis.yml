@@ -2,15 +2,19 @@ language: python
 python:
  - "3.5"
  - "3.6"
+env:
+ global:
+  - secure: "F9qUh0kn2DQ6SLpOpX0XjjTvYvHsBandr0YGjctrnKjWDRc/P5MECIYgo83YXR7dqP4LqEghZyGD1uRsMTcmU3g5p6lqCioYny0pQR02uWIKfr/njLk5r1m+yj2dpmu7/5RbwY+6zasgk2H9Kj+6gRvscpOPXfuLOyrXtEuyn8L8sEZnFWfOyfO1rhhpIxn2Qbi2U3sFgBW3V0RDdh3JErEJ5OfRJHUpDTbHcu1l2dhH7+Fb15KYEvrwxdbKYJ6l15N+59oseoZNvtbaH+fv6IOz8goFaj29xCdABlJi9vtwlKmSGYffDc3TnI5kUQpZgvlBjksHcjOf7Tzre+oOVp5a7m6Hrn2Z1IhkD6qHnFM1Khj+l5qtaVs12S+PwdYn6Y9Gwg5PHUAT4kGpFbBakshRzoNCxlvuyUoQY2xMb498Q73eZo5iKS5Unk5LuZXdKJgCVwF6prrMnNn7QhNynum8bnF2FQ4ELI1ABZBjVLspyp5d4/HPxhJLtg4eKqK98Ddv5HaXfOaENjvk+YUxYtG9BmHOmAjM/IPwxhSh+hivu4LHuqbT+UY8+F2/zlMpDWLgSqcY9hyz2H27ro9453O6wbtQotP3qYZadbU1o3sVqzcFXJ14qpvb41eETkennk1a2JAB3b7UpB1tyWsImO2KmJyujs9hQDa6P2IoxlM="
 install:
  - pip install -r requirements.txt
- - pip install -U coverage
- - pip install -U coveralls
+ - pip install coverage
+ - pip install codacy-coverage
 script:
  - cd python/tests
  - env PYTHONPATH=.. python -m unittest --verbose all
  - cd ..
  - env PYTHONPATH=. coverage run tests/all.py
+ - coverage xml
  - cd ..
 after_success:
- - coveralls
+ - python-codacy-coverage -r coverage.xml
