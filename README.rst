@@ -54,11 +54,11 @@ suggestions, and bugs.
 .. |Docs| image:: https://readthedocs.org/projects/fixtool/badge/?version=latest
     :target: http://fixtool.readthedocs.io/en/latest/
     :alt: Docs
-.. |Code Health| image:: https://landscape.io/github/da4089/fixtool/master/landscape.svg?style=flat
-    :target: https://landscape.io/github/da4089/fixtool/master
+.. |Code Health| image:: https://api.codacy.com/project/badge/Grade/abd5c37cfe834d5ca5edb74853223986    :target: https://www.codacy.com/app/da4089/fixtool?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=da4089/fixtool&amp;utm_campaign=Badge_Grade
+    :target: https://app.codacy.com/app/da4089/fixtool/dashboard
     :alt: Code Health
-.. |Coverage| image:: https://coveralls.io/repos/github/da4089/fixtool/badge.svg?branch=master
-    :target: https://coveralls.io/github/da4089/fixtool?branch=master
+.. |Coverage| image:: https://api.codacy.com/project/badge/Coverage/abd5c37cfe834d5ca5edb74853223986    :target: https://www.codacy.com/app/da4089/fixtool?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=da4089/fixtool&amp;utm_campaign=Badge_Coverage
+    :target: https://app.codacy.com/app/da4089/fixtool/dashboard
     :alt: Coverage
 .. |PyPI| image:: https://img.shields.io/pypi/v/fixtool.svg
     :target: https://pypi.python.org/pypi/fixtool
@@ -66,3 +66,9 @@ suggestions, and bugs.
 .. |Python| image:: https://img.shields.io/pypi/pyversions/fixtool.svg
     :target: https://pypi.python.org/pypi/fixtool
     :alt: Python
+.. |Landscape| image:: https://landscape.io/github/da4089/fixtool/master/landscape.svg?style=flat
+    :target: https://landscape.io/github/da4089/fixtool/master
+    :alt: Code Health
+.. |Coveralls| image:: https://coveralls.io/repos/github/da4089/fixtool/badge.svg?branch=master
+    :target: https://coveralls.io/github/da4089/fixtool?branch=master
+    :alt: Coverage
