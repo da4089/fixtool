@@ -884,6 +884,7 @@ class FixToolAgent(object):
 
         response = ServerDisconnectedMessage(name, True, '')
         control.send(response.to_json().encode())
+        logging.debug("Server session [%s] disconnected." % name)
         return
 
     def handle_session_send(self, control: ControlSession, message: dict):
