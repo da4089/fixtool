@@ -831,6 +831,9 @@ class FixToolAgent(object):
 
         :param control: Control session.
         :param message: Control message."""
+
+        logging.debug("STARTING handle_server_accept")
+
         name = message["name"]
         server = self._servers.get(name)
         if server is None:
@@ -839,11 +842,13 @@ class FixToolAgent(object):
             control.send(response.to_json().encode())
             return
 
+        logging.debug("GOT server [%s]" % name)
         session_name = message.get("session_name")
         session = server.accept_client_session(session_name)
         self._server_sessions[session_name] = session
         response = ServerAcceptedMessage(name, True, '', session_name)
         control.send(response.to_json().encode())
+        logging.debug("SENT response")
         return
 
     def handle_server_is_connected_request(self, control: ControlSession,
@@ -992,7 +997,9 @@ def main():
         if not args.foreground:
             pid = os.fork()
             if pid != 0:
-                sys.exit(0)
+                # Exit parent process without cleaning up, so child
+                # retains control of shared resources.
+                os._exit(0)
 
         try:
             agent = FixToolAgent(args.port)

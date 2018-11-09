@@ -249,6 +249,7 @@ class Server(object):
         self._proxy.send_request(msg)
 
         response = self._proxy.await_response()
+        logging.info("GOT accept response from agent")
         if not response.result:
             raise RuntimeError(response.message)
 
