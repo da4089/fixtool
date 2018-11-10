@@ -23,6 +23,7 @@
 #
 ##################################################################
 
+import base64
 import json
 
 __all__ = ["ShutdownMessage",
@@ -701,21 +702,23 @@ class ServerDestroyedMessage:
 
 class SessionSendMessage:
     """Request message be sent from server to client."""
-    def __init__(self, name: str, payload: str):
+    def __init__(self, name: str, payload: bytes):
         self.type = "session_send"
         self.name = name
         self.payload = payload
         return
 
     def to_json(self):
+        payload = base64.b64encode(self.payload).decode()
         return json.dumps({"type": self.type,
                            "name": self.name,
-                           "payload": self.payload})
+                           "payload": payload})
 
     @staticmethod
     def from_dict(d):
+        payload = base64.b64decode(d.get("payload"))
         return SessionSendMessage(d.get("name"),
-                                  d.get("payload"))
+                                  payload)
 
 
 class SessionSentMessage:
@@ -812,15 +815,17 @@ class SessionGotMessage:
         return
 
     def to_json(self):
+        payload = base64.b64encode(self.payload).decode()
         return json.dumps({"type": self.type,
                            "name": self.name,
                            "result": self.result,
                            "message": self.message,
-                           "payload": self.payload})
+                           "payload": payload})
 
     @staticmethod
     def from_dict(d):
+        payload = base64.b64decode(d.get("payload"))
         return SessionGotMessage(d.get("name"),
                                  d.get("result"),
                                  d.get("message"),
-                                 d.get("payload"))
+                                 payload)
