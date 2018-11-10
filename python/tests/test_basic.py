@@ -60,8 +60,7 @@ def test_create_server():
     c1.send(send_buf)
     assert cs1.receive_queue_length() == 1
 
-    #m1 = cs1.receive()
-    #self.assertEqual("hello", m1)
+    m1 = cs1.receive()
 
     c1.destroy()
     s1.destroy()
